@@ -94,3 +94,10 @@ assets {
     ]
 }
 
+
+// Grails 7.2.4's buildProperties task captures the Project object, which the
+// Gradle configuration cache cannot serialize. Opt the task out so the build
+// works even when ~/.gradle/gradle.properties enables the cache.
+tasks.matching { it.name == 'buildProperties' }.configureEach {
+    notCompatibleWithConfigurationCache('Grails 7.2.4 buildProperties references Project')
+}

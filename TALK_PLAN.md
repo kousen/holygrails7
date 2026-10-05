@@ -51,7 +51,8 @@ entirely, or wave at scaffolding once and move on.
   API hosts are latest.grails.org (RELEASE) and next.grails.org (NEXT).
 - Gotcha hit while setting up: `org.gradle.configuration-cache=true` in
   `~/.gradle/gradle.properties` breaks the 7.2.4 `buildProperties` task.
-  Overridden to `false` in this project's gradle.properties.
+  A project-level gradle.properties cannot override it (user-home wins), so
+  build.gradle marks that task `notCompatibleWithConfigurationCache`.
 - Fun callback for the AI talk: the Grails 8 release notes mention a
   "Grails 8 Upgrade skill" and list @claude among contributors.
 
