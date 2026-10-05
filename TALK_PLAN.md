@@ -22,23 +22,45 @@ Also an "aspirational" talk. The abstract as written is a full-day workshop;
 in 40 minutes it needs to be cut to three beats. Skip the controller/view layer
 entirely, or wave at scaffolding once and move on.
 
-## Grails 7 facts (verified Oct 2026)
+## Grails 7 facts (verified 5 Oct 2026)
 
 - Grails 7.0.0 shipped 28 October 2025 — the first stable release after
-  graduating to an ASF Top-Level Project. By the conference it has a year of
-  point releases behind it.
-- Dependency upgrades: Java 17+, Groovy 4, Spring Boot 3.5, Spring Framework
-  6.2, Jakarta EE 10, Hibernate.
-- New features: containerized browser testing with Testcontainers (Geb),
+  graduating to an ASF Top-Level Project.
+- **Current release: 7.2.4** (about two weeks old). Also maintained:
+  7.1.7 and 7.0.17. This project targets 7.2.4.
+- **Grails 8.0.0 was tagged 4 Oct 2026** but is still marked pre-release on
+  GitHub (ASF vote presumably in progress); 8.0.0-RC2 is what Forge serves as
+  NEXT. It may be announced the week of the conference — have a one-slide
+  "and here comes 8" ready. The Grails site already advertises a JavaMUG talk
+  "An Introduction to Apache Grails 8" on 11 Nov 2026.
+- 7.2.4 stack (from Forge BOM): Java 17/21/25, Groovy 4.0.33, Spring Boot
+  3.5.16, Hibernate 5.6.15 (GORM default), H2 2.4, Geb 8.0.1, Spock 2.3,
+  Gradle 8.14.5.
+- 8.0.0-RC2 stack: Groovy 5.1.3, Spring Boot 4.1.1, Spock 2.4-groovy-5.0,
+  Hibernate 7 support in GORM, jQuery 4, Undertow option.
+- Grails 7 features: containerized browser testing with Testcontainers (Geb),
   optional Micronaut integration, SBOM generation, reproducible builds,
   external configuration integration.
 - ASF transition changes: mono repo, reworked CLIs, modernized Gradle plugins
   and tasks, and **new Maven coordinates for all artifacts** (e.g.
-  `org.apache.grails.i18n:grails-i18n`). This matters to anyone upgrading
-  from Grails 6 — likely half the room.
+  `org.apache.grails:grails-core`, `org.apache.grails.profiles:web`). This
+  matters to anyone upgrading from Grails 6 — likely half the room.
 - Companion plugin major releases: Spring Security 7.0.0, Quartz 4.0.0,
   Redis 5.0.0.
-- Check the latest 7.x release notes before finalizing the "what's new" slides.
+- Forge moved: start.grails.org now redirects to grails.apache.org/start.
+  API hosts are latest.grails.org (RELEASE) and next.grails.org (NEXT).
+- Gotcha hit while setting up: `org.gradle.configuration-cache=true` in
+  `~/.gradle/gradle.properties` breaks the 7.2.4 `buildProperties` task.
+  Overridden to `false` in this project's gradle.properties.
+- Fun callback for the AI talk: the Grails 8 release notes mention a
+  "Grails 8 Upgrade skill" and list @claude among contributors.
+
+## Project setup (done 5 Oct 2026)
+
+- Generated with Forge: web profile, `com.kousenit.holygrails`, JDK 21,
+  Hibernate, Spock, Testcontainers feature. Committed untouched.
+- `.sdkmanrc` pins java 21.0.8-tem and grails 7.2.4.
+- `./gradlew test` passes on the empty app.
 
 ## Proposed structure (three beats)
 
