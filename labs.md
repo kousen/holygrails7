@@ -1419,3 +1419,228 @@ Static scaffolding is a starting point you edit: the generated controller is rea
 ```bash
 git checkout step6-scaffold
 ```
+
+## Lab 7: A Geocoder Service
+
+Services are where Grails puts business logic: Spring beans in `grails-app/services`, injected into controllers and other services by name, transactional by default. This lab writes one that calls an external web API to find a castle's coordinates, tests it without the network, tests it with the network, and hooks it into the scaffolded `CastleService` so that any castle created through the web form is geocoded on save.
+
+The API is [Open-Meteo's geocoding endpoint](https://open-meteo.com/en/docs/geocoding-api). It is free, needs no key, and answers a town name with JSON:
+
+```
+https://geocoding-api.open-meteo.com/v1/search?name=Doune&count=1
+```
+
+```json
+{"results":[{"name":"Doune","latitude":56.18995,"longitude":-4.05288,"country":"United Kingdom","admin1":"Scotland", ...}]}
+```
+
+When nothing matches, the response has no `results` key at all.
+
+### Step 1: Create the service
+
+```bash
+./grailsw create-service Geocoder
+```
+
+That makes `grails-app/services/com/kousenit/GeocoderService.groovy` and a unit test skeleton. The generated class is annotated `@Transactional`. Remove that: this service touches no database, and a transaction around an HTTP call is a waste.
+
+### Step 2: Exercise: implement the lookup
+
+Give the service two methods with these signatures:
+
+```groovy
+package com.kousenit
+
+import groovy.json.JsonSlurper
+
+class GeocoderService {
+
+    static final String BASE = 'https://geocoding-api.open-meteo.com/v1/search'
+
+    /** Fill in latitude and longitude from the castle's city, if the API knows it. Returns the castle. */
+    Castle fillInLatLng(Castle castle) {
+        // TODO
+    }
+
+    /** The first matching place for a town name, as a Map, or null if there is none. */
+    Map lookup(String city) {
+        // TODO
+    }
+}
+```
+
+Two methods rather than one, because the split is what makes the service testable: `lookup` is the only method that touches the network, so a test can replace just that one. `JsonSlurper` is in `groovy-json`, which Grails includes. `String.toURL()` and `URL.text` or `JsonSlurper.parse(URL)` come from the Groovy JDK. Encode the town name; "Port Appin" has a space in it.
+
+When you have it, compare with this version:
+
+```groovy
+    Castle fillInLatLng(Castle castle) {
+        Map place = lookup(castle.city)
+        if (place) {
+            castle.latitude = place.latitude as Double
+            castle.longitude = place.longitude as Double
+        }
+        castle
+    }
+
+    Map lookup(String city) {
+        String url = "$BASE?name=${URLEncoder.encode(city, 'UTF-8')}&count=1"
+        Map response = new JsonSlurper().parse(url.toURL()) as Map
+        (response.results as List<Map>)?.find()
+    }
+```
+
+`find()` with no argument returns the first element, or `null` for an empty or missing list, which is exactly the contract we want.
+
+### Step 3: Unit test with a Spy
+
+Replace `src/test/groovy/com/kousenit/GeocoderServiceSpec.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.testing.gorm.DomainUnitTest
+import grails.testing.services.ServiceUnitTest
+import spock.lang.Specification
+
+class GeocoderServiceSpec extends Specification
+        implements ServiceUnitTest<GeocoderService>, DomainUnitTest<Castle> {
+
+    Castle camelot = new Castle(name: 'Camelot', city: 'Doune', country: 'Scotland')
+
+    void "coordinates are copied from the first result"() {
+        given: 'a service whose lookup never touches the network'
+        GeocoderService geocoder = Spy(GeocoderService) {
+            lookup('Doune') >> [name: 'Doune', latitude: 56.18995, longitude: -4.05288]
+        }
+
+        when:
+        geocoder.fillInLatLng(camelot)
+
+        then:
+        camelot.latitude == 56.18995d
+        camelot.longitude == -4.05288d
+        camelot.validate()
+    }
+
+    void "an unknown town leaves the coordinates alone"() {
+        given:
+        GeocoderService geocoder = Spy(GeocoderService) {
+            lookup(_) >> null
+        }
+        Castle anthrax = new Castle(name: 'Castle Anthrax', city: 'Nowheresville', country: 'Scotland')
+
+        when:
+        geocoder.fillInLatLng(anthrax)
+
+        then:
+        anthrax.latitude == null
+        anthrax.longitude == null
+    }
+
+    void "the service returns the castle so calls can chain"() {
+        given:
+        GeocoderService geocoder = Spy(GeocoderService) { lookup(_) >> null }
+
+        expect:
+        geocoder.fillInLatLng(camelot).is(camelot)
+    }
+}
+```
+
+A Spock **Spy** wraps a real object. Methods you stub, here `lookup`, return what you say; everything else runs the real code. So `fillInLatLng` is tested for real, with the network call replaced. The spec implements both `ServiceUnitTest` for the service and `DomainUnitTest<Castle>` so that `new Castle(...)` and `validate()` work.
+
+### Step 4: Integration test against the real API
+
+Create `src/integration-test/groovy/com/kousenit/GeocoderServiceLiveSpec.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.testing.mixin.integration.Integration
+import spock.lang.IgnoreIf
+import spock.lang.Specification
+
+@Integration
+@IgnoreIf({ env.OFFLINE })
+class GeocoderServiceLiveSpec extends Specification {
+
+    GeocoderService geocoderService
+
+    void "Doune is where we left it"() {
+        when:
+        Map place = geocoderService.lookup('Doune')
+
+        then:
+        place.country == 'United Kingdom'
+        (place.latitude - 56.19).abs() < 0.05
+        (place.longitude - -4.05).abs() < 0.05
+    }
+
+    void "a town the Bridgekeeper has never heard of returns nothing"() {
+        expect:
+        geocoderService.lookup('Nowheresville') == null
+    }
+}
+```
+
+The `@Integration` test gets the real `GeocoderService` bean injected by name. `@IgnoreIf({ env.OFFLINE })` skips both tests when an `OFFLINE` environment variable is set, so the build still passes on conference wifi:
+
+```bash
+OFFLINE=1 ./gradlew integrationTest
+```
+
+### Step 5: Geocode on save
+
+The scaffolded `CastleService` from Lab 6 extends `GormService<Castle>`, so its `save` can be overridden like any method. Edit `grails-app/services/com/kousenit/CastleService.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.plugin.scaffolding.annotation.Scaffold
+
+@Scaffold(Castle)
+class CastleService {
+
+    GeocoderService geocoderService
+
+    @Override
+    Castle save(Castle castle) {
+        if (castle.latitude == null || castle.longitude == null) {
+            geocoderService.fillInLatLng(castle)
+        }
+        super.save(castle)
+    }
+}
+```
+
+`GeocoderService geocoderService` is injected by Spring because the property name matches the bean name; no annotation needed. The `null` check means the seed castles, which arrive with coordinates, never trigger a network call, and startup stays offline.
+
+Run everything:
+
+```bash
+./gradlew test
+./gradlew integrationTest
+```
+
+### Step 6: Try it
+
+Start the app, go to **Castles → New Castle**, and create *Castle Anthrax* in *Doune*, *Scotland*, leaving the coordinates blank. The show page comes back with latitude 56.18995 and longitude -4.05288. The JSON view agrees:
+
+```bash
+curl -H "Accept: application/json" http://localhost:8080/castle/show/4
+```
+
+### Key Learning Points
+
+- Services are Spring beans injected by name. Drop `@Transactional` when there is no database work.
+- Split the network call into its own method so a Spock `Spy` can replace it and test the rest for real.
+- `@IgnoreIf` and `@Requires` keep tests that need the outside world from breaking the build when it is not there.
+- A `@Scaffold` service is a real subclass of `GormService`; override `save` to add behavior.
+- Design seed data so startup never depends on the network.
+
+### Checkpoint
+
+```bash
+git checkout step7-geocoder
+```
