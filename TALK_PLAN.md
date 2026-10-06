@@ -58,39 +58,63 @@ entirely, or wave at scaffolding once and move on.
 
 ## Project setup (done 5 Oct 2026)
 
-- Generated with Forge: web profile, `com.kousenit.holygrails`, JDK 21,
+- Generated with Forge: web profile, `com.kousenit.holygrails`, JDK 21 (Temurin 21.0.8 via .sdkmanrc),
   Hibernate, Spock, Testcontainers feature. Committed untouched.
 - `.sdkmanrc` pins java 21.0.8-tem and grails 7.2.4.
+- **JDK decision (6 Oct):** 21, not 25. Grails 7.2.4 requires Gradle 8.14.x
+  (its plugins break on Gradle 9: `groovyOptions.configurationScriptFile is
+  final`), and Gradle 8.14 officially supports Java 24 at most. IntelliJ
+  enforces that table and refuses to sync on JDK 25. Gradle 9.8 + Java 25 is a
+  Grails 8 item for the "what's coming" slide.
 - `./gradlew test` passes on the empty app.
 
-## Proposed structure (three beats)
+## Decisions (6 Oct 2026)
 
-1. **Build the domain.** `Knight`, `Quest`, `Castle`, `Task` with `hasMany` /
-   `belongsTo` and constraints. Show scaffolding once to prove it runs.
-   Let the theme carry the transitions:
-   - a `Shrubbery` domain class
-   - a constraint requiring `favouriteColour` unless the knight is Galahad
-   - dynamic finders like `Quest.findAllByCompletedAndKnight(false, arthur)`
+- **Two deliverables:** a staged tutorial repo with `labs.md` and a git tag per
+  lab (Ken's training-class format), plus a 40-minute demo that walks a subset
+  of the labs live. Main always holds the finished app.
+- **Baseline code:** github.com/kousen/holygrails500 (Grails 5.0.0) is the
+  starting domain model; it already uses `LocalDate` in `Task`. The Grails 3.3
+  labs (archived kousenit.com site, `grails-3.3/labs/*.html`) supply the lab
+  progression and the Monty Python seed data.
+- **Geocoding:** Open-Meteo geocoding API (no key, JSON). BootStrap ships
+  hard-coded coordinates; the service runs only for castles added via the UI,
+  so startup never touches the network. Map: Leaflet + OpenStreetMap tiles.
+- **Finders/criteria** move from the dead `grails console` into a Spock
+  integration test.
+- **Expansion for the "AI builds the rest" argument:** `Enemy` hierarchy for
+  GORM inheritance (BlackKnight, RabbitOfCaerbannog, Bridgekeeper) and a JSON
+  views endpoint tested with `HttpClientSupport` (7.1+).
+- **Exercises:** the geocoder method (and the Galahad validator) are presented
+  as exercises with the code supplied in the lab, Ken's usual format.
+- **Headline Grails 7 slide:** `@Scaffold` before/after using the 103-line
+  generated `CastleController` from holygrails500.
+- **Security follow-up:** holygrails500's `GeocoderService` has a Google Maps
+  API key committed in a public repo. Revoke it.
+- **Conference context (from the desktop conversation):** James's Grails 8
+  talk is at 17:00 the same day; Mattias covers Geb/Testcontainers. One line
+  acknowledging each and hand off.
 
-2. **One service, one test.** A single transactional service method (e.g.
-   assigning a quest, completing a task) plus a Spock test — unit and/or
-   integration, with a nod to Testcontainers if time permits.
+## Stages
 
-3. **What changed in 7.** A tight segment aimed at the upgrade crowd:
-   dependency versions, Maven coordinate changes, CLI/Gradle changes, and the
-   new testing and build features above.
+| Tag | Lab | In the demo? |
+|---|---|---|
+| `step0-starter` | Creating the project | Finished state, 2 min |
+| `step1-quest` | Quest, scaffolding, blank constraint, message | Live |
+| `step2-task` | Task, belongsTo, range, date validator, duration | Live (validator) |
+| `step3-testing` | Spock specs with @Unroll | Shown |
+| `step4-queries` | Seed data; finders, criteria, where as integration test | Live (two finders) |
+| `step5-model` | Knight, Castle, Galahad rule | Shown with seed data |
+| `step6-scaffold` | @Scaffold on CastleController, before/after from 5.0 | Live, headline |
+| `step7-geocoder` | Open-Meteo GeocoderService, mocked unit test, integration test | Live |
+| `step8-map` | Leaflet castle map | Shown, payoff |
+| `step9-grails7` | What's new, upgrade notes, ContainerGebSpec | Slides |
+| `step10-enemies` | Enemy hierarchy (GORM inheritance) | If time |
+| `step11-json` | JSON views endpoint + HttpClientSupport | Optional |
 
 ## Practical notes
 
-- Generate the starter app from Grails Forge with the current 7.x version and
-  commit it before adding anything, so the diff tells the story.
-- Have the finished app ready as a fallback; live-code only the domain classes.
+- Live-code only what the table marks Live; everything else is `git checkout`.
+- Hotel wifi is the enemy: nothing in the demo path needs the network.
 - Monty Python references should do structural work (names, constraints,
   finders), not add material.
-
-## Open questions
-
-- Unit tests vs. integration tests for the service — or both briefly?
-- Show Testcontainers browser testing live, or just describe it?
-- How to work the AI client callback in (a `GrailService`? a `Quest` summary?)
-- Whether to show any GSP/controller at all.
