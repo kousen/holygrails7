@@ -8,6 +8,7 @@ class BootStrap {
         if (Environment.current != Environment.TEST && Quest.count() == 0) {
             Quest quest = SeedData.seekTheGrail()
             SeedData.theCourt(quest)
+            SeedData.theOpposition(quest)
         }
     }
 

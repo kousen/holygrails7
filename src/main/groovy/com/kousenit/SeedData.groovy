@@ -46,4 +46,17 @@ class SeedData {
                 .save(failOnError: true)
         [camelot, aaargh, swamp]
     }
+
+    /** The opposition, one of each kind, so polymorphic queries have something to find. */
+    static List<Enemy> theOpposition(Quest quest) {
+        [
+            new BlackKnight(name: 'The Black Knight', location: 'A bridge in the forest', quest: quest),
+            new RabbitOfCaerbannog(name: 'The Rabbit of Caerbannog', location: 'The Cave of Caerbannog',
+                    knightsEaten: 3, quest: quest),
+            new Bridgekeeper(name: 'The Bridgekeeper', location: 'The Bridge of Death', quest: quest,
+                    questions: ['What is your name?', 'What is your quest?', 'What is your favourite colour?']),
+            new BlackKnight(name: 'The Black Knight, later', location: 'The same bridge', limbsRemaining: 0,
+                    defeated: true, quest: quest),
+        ].each { it.save(failOnError: true) }
+    }
 }
