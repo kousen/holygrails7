@@ -121,13 +121,12 @@ Grails 7.0.0 shipped 28 October 2025, the first release as an Apache top-level p
 | Spring Boot | 2.7 | **3.5.16** |
 | Spring Framework | 5.3 | **6.2.19** |
 | Servlet API | `javax.*` | **`jakarta.*`** |
-| Hibernate | 5.6 | 5.6.15 (jakarta build) |
 | Gradle | 7.6 | **8.14.5** |
 
 Group id for everything: `org.apache.grails`, versioned by one BOM.
 
 <!--
-Hibernate did NOT move. That surprises people. Hibernate 7 is Grails 8.
+Hibernate did NOT move: still 5.6.15, the jakarta build. That surprises people. Hibernate 7 is Grails 8.
 -->
 
 ---
@@ -361,7 +360,18 @@ class TaskSpec extends Specification implements DomainUnitTest<Task> {
         !task.validate()
         task.errors['priority'].code == 'range.toobig'
     }
+}
+```
 
+- `DomainUnitTest`: GORM without a database
+- `@Shared` for the fixture nobody mutates; a plain field is rebuilt for every feature
+- The error codes (`blank`, `nullable`, `range.toobig`, `validator.invalid`) are your message keys
+
+---
+
+# One test, five cases
+
+```groovy
     @Unroll
     void "a task with priority #priority is valid"() {
         when:
@@ -373,10 +383,9 @@ class TaskSpec extends Specification implements DomainUnitTest<Task> {
         where:
         priority << (1..5)
     }
-}
 ```
 
-`DomainUnitTest`: GORM without a database. The error codes are your message keys.
+The report lists *a task with priority 1 is valid* through *a task with priority 5 is valid*. Change the range to `1..4` and watch which one fails.
 
 ---
 
@@ -467,7 +476,7 @@ For tests that *must* commit (browser tests, HTTP tests): `@DatabaseCleanup`. La
 
 # The whole model
 
-```mermaid {scale: 0.75}
+```mermaid {scale: 0.62}
 classDiagram
     Castle "1" --> "*" Knight : knights
     Quest "1" --> "*" Knight : knights
@@ -483,22 +492,19 @@ classDiagram
     class Enemy { name, location, defeated }
 ```
 
-`Task` and `Enemy` use `belongsTo`. `Knight` holds plain references: knights wander, and deleting a quest must not delete them.
+`Task` and `Enemy` use `belongsTo`; `Knight` holds plain references, because knights wander.
 
 ---
 
 # The Bridge of Death
 
-> "What... is your favourite colour?"<br>
-> "Blue. No, yel—" *aaaargh*
+"What... is your favourite colour?" "Blue. No, yel—" *aaaargh*
 
 ```groovy
 class Knight {
     String title = 'Sir'
     String name
     String favouriteColour
-    Quest quest
-    Castle castle
 
     static constraints = {
         title inList: ['Sir', 'Lord', 'Lady', 'King', 'Queen']
@@ -509,8 +515,6 @@ class Knight {
                 return 'bridgeOfDeath'
             }
         }
-        quest nullable: true
-        castle nullable: true
     }
 }
 ```
