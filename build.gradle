@@ -41,6 +41,7 @@ dependencies {
     testAndDevelopmentOnly "org.webjars.npm:jquery"
     implementation platform("org.apache.grails:grails-bom:$grailsVersion")
     implementation "org.apache.grails:grails-core"
+    implementation "org.apache.groovy:groovy-datetime"
     implementation "org.apache.grails:grails-data-hibernate5"
     implementation "org.apache.grails:grails-databinding"
     implementation "org.apache.grails:grails-events"

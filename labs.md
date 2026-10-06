@@ -462,3 +462,221 @@ Grails can generate a complete create, read, update, delete interface for a doma
 ```bash
 git checkout step1-quest
 ```
+
+## Lab 2: Adding a Related Domain Class
+
+A quest is a list of tasks. In this lab you add a `Task` class, make it belong to a `Quest`, and use three kinds of constraint: a range, a cross-property validator, and the defaults GORM applies on its own. Along the way you meet `java.time` in domain classes, derived properties, and automatic timestamps.
+
+### Step 1: Create the Task class
+
+1. Generate the class and its test skeleton:
+
+   ```bash
+   ./grailsw create-domain-class Task
+   ```
+
+2. Replace the contents of `grails-app/domain/com/kousenit/Task.groovy`:
+
+   ```groovy
+   package com.kousenit
+
+   import groovy.transform.ToString
+
+   import java.time.LocalDate
+
+   @ToString(includeNames = true, includes = ['name', 'priority', 'completed'])
+   class Task {
+       String name
+       int priority = 3
+       LocalDate startDate = LocalDate.now()
+       LocalDate endDate = LocalDate.now()
+       boolean completed
+
+       static belongsTo = [quest: Quest]
+
+       int getDuration() { (endDate - startDate) + 1 }
+
+       static constraints = {
+           name blank: false
+           priority range: 1..5
+           endDate validator: { LocalDate value, Task task ->
+               value >= task.startDate
+           }
+       }
+   }
+   ```
+
+   Points to notice:
+
+   - **`belongsTo`** makes `Quest` the owning side. Deleting a quest cascades to its tasks, and `quest` becomes a required property on `Task`.
+   - **`range: 1..5`** uses a Groovy range as a constraint. Values outside it fail with the codes `range.toosmall` or `range.toobig`.
+   - **`validator:`** takes a closure. With two parameters it receives the property value and the whole instance, so it can compare `endDate` to `startDate`. Returning `false` produces the error code `validator.invalid`.
+   - **`getDuration()`** is a getter with no backing field. GORM treats getter-only properties as non-persistent, so there is no `duration` column and no `static transients` list is needed, unlike older Grails versions.
+   - **`LocalDate`** maps to a `DATE` column. The subtraction `endDate - startDate` is Groovy's operator overloading for dates, which returns the number of days between them.
+
+> [!IMPORTANT]
+> That subtraction will not compile as the project stands. Groovy 4 is modular, and the date operators live in the `groovy-datetime` module. Grails includes `groovy-json`, `groovy-sql`, `groovy-templates`, and `groovy-xml`, but not `groovy-datetime`. Add it to the `dependencies` block of `build.gradle`, right after `grails-core`. The Groovy BOM supplies the version:
+>
+> ```groovy
+> implementation "org.apache.groovy:groovy-datetime"
+> ```
+>
+> You get `date - date`, `date + 1`, `date.format('MMM d')`, and ranges over dates in return.
+
+   - **`@ToString`** from Groovy generates `toString()` so you do not have to write one.
+
+### Step 2: Complete the other side of the relationship
+
+1. Edit `grails-app/domain/com/kousenit/Quest.groovy` to declare the collection of tasks and two timestamp properties:
+
+   ```groovy
+   package com.kousenit
+
+   import java.time.LocalDateTime
+
+   class Quest {
+       String name
+       LocalDateTime dateCreated
+       LocalDateTime lastUpdated
+
+       static hasMany = [tasks: Task]
+
+       String toString() { name }
+
+       static constraints = {
+           name blank: false
+       }
+   }
+   ```
+
+   `hasMany` gives `Quest` a `Set<Task> tasks` plus an `addToTasks` method. The property names `dateCreated` and `lastUpdated` are special: GORM fills them in automatically on insert and update. They work with `java.time` types as well as `java.util.Date`.
+
+### Step 3: Generate the scaffolding
+
+```bash
+./grailsw generate-all com.kousenit.Task
+```
+
+This produces the same set of files as for `Quest`: controller, data service, four views, and two test skeletons. Open `grails-app/views/task/create.gsp` and notice that the whole form is one tag, `<f:all bean="task" .../>` from the Fields plugin, which renders a widget for each property: a select for `quest` populated from the database, day, month, and year selects for the dates, and a checkbox for `completed`.
+
+### Step 4: Try it
+
+1. Start the app with `./grailsw run-app` and create a quest, then go to **TaskController → New Task**. The **Quest** dropdown lists your quest by its `toString` value.
+
+2. Create a task with an end date earlier than its start date. The default error reads:
+
+   ```
+   Property [endDate] of class [class com.kousenit.Task] with value [...] does not pass custom validation
+   ```
+
+3. Replace that with a message. The key for a custom validator is `className.propertyName.validator.invalid`. Add to `grails-app/i18n/messages.properties`:
+
+   ```properties
+   task.endDate.validator.invalid=A task cannot end before it starts
+   ```
+
+   Restart and try again. Then try a priority of 9 and read the range error, which already includes the bounds.
+
+4. Open the quest's show page. The scaffolding renders the `tasks` collection as links. The `dateCreated` and `lastUpdated` values are stored but not shown; the scaffolding templates leave them out on purpose.
+
+### Step 5: Fill in the tests
+
+1. Replace `src/test/groovy/com/kousenit/TaskSpec.groovy`:
+
+   ```groovy
+   package com.kousenit
+
+   import grails.testing.gorm.DomainUnitTest
+   import spock.lang.Specification
+
+   class TaskSpec extends Specification implements DomainUnitTest<Task> {
+
+       Quest quest = new Quest(name: 'Seek the grail')
+       Task task = new Task(name: 'Defeat the Black Knight', quest: quest)
+
+       void "a task with defaults is valid"() {
+           expect:
+           task.validate()
+           task.priority == 3
+           !task.completed
+       }
+
+       void "a task that starts and ends today lasts one day"() {
+           expect:
+           task.duration == 1
+       }
+
+       void "the end date may not precede the start date"() {
+           when:
+           task.endDate = task.startDate.minusDays(1)
+
+           then:
+           !task.validate()
+           task.errors['endDate'].code == 'validator.invalid'
+       }
+   }
+   ```
+
+   Spock creates a fresh `TaskSpec` instance for every feature method, so the `task` field is a new object in each test.
+
+2. In `TaskControllerSpec.groovy`, provide the valid parameters:
+
+   ```groovy
+   def populateValidParams(params) {
+       assert params != null
+       params["name"] = 'Defeat the Black Knight'
+       params["priority"] = 2
+   }
+   ```
+
+3. In `src/integration-test/groovy/com/kousenit/TaskServiceSpec.groovy`, every task needs a quest, so `setupData` creates one first:
+
+   ```groovy
+   private Long setupData() {
+       Quest quest = new Quest(name: 'Seek the grail').save(flush: true, failOnError: true)
+       new Task(name: 'Run away from killer rabbit', quest: quest).save(flush: true, failOnError: true)
+       new Task(name: 'Answer the Bridgekeeper', priority: 4, quest: quest).save(flush: true, failOnError: true)
+       Task task = new Task(name: 'Defeat the Black Knight', completed: true, quest: quest).save(flush: true, failOnError: true)
+       new Task(name: 'Bring out your dead', quest: quest).save(flush: true, failOnError: true)
+       new Task(name: 'Find a shrubbery', priority: 2, quest: quest).save(flush: true, failOnError: true)
+       task.id
+   }
+   ```
+
+   and the `save` test does the same:
+
+   ```groovy
+   void "test save"() {
+       when:
+       Quest quest = new Quest(name: 'Seek the grail').save(flush: true, failOnError: true)
+       Task task = new Task(name: 'Defeat the Black Knight', quest: quest)
+       taskService.save(task)
+
+       then:
+       task.id != null
+   }
+   ```
+
+   As in Lab 1, change the `get` test to use the returned id and remove the leftover `assert false` lines.
+
+4. Run everything:
+
+   ```bash
+   ./gradlew test
+   ./gradlew integrationTest
+   ```
+
+### Key Learning Points
+
+- `belongsTo` on the child and `hasMany` on the parent make a one-to-many with cascading deletes and an `addTo...` method.
+- Constraints include ranges and custom validator closures; the validator's second parameter is the whole instance.
+- Getter-only properties are derived, not persisted. Grails 7 needs no `transients` declaration for them.
+- `dateCreated` and `lastUpdated` are filled in by GORM and work with `java.time`.
+- Groovy 4 is modular. Grails 7 ships `groovy-json`, `groovy-sql`, `groovy-templates`, and `groovy-xml`; add `groovy-datetime` yourself for date operators.
+- Custom validator messages use the key `className.propertyName.validator.invalid`.
+
+### Checkpoint
+
+```bash
+git checkout step2-task
+```
