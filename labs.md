@@ -1063,3 +1063,249 @@ Nine tasks, eight features, and a transaction rolled back after each one. Add a 
 ```bash
 git checkout step4-queries
 ```
+
+## Lab 5: Completing the Domain Model
+
+Quests need knights, and knights need somewhere to live. This lab adds `Knight` and `Castle`, completes the associations, and writes one more custom validator, this time one whose rule depends on *which* knight you are. By the end the model looks like this:
+
+```
+Castle 1 ──< Knight >── 1 Quest 1 ──< Task
+```
+
+### Step 1: Castle
+
+1. Generate the class:
+
+   ```bash
+   ./grailsw create-domain-class Castle
+   ```
+
+2. Replace `grails-app/domain/com/kousenit/Castle.groovy`:
+
+   ```groovy
+   package com.kousenit
+
+   class Castle {
+       String name
+       String city
+       String country
+       Double latitude
+       Double longitude
+
+       static hasMany = [knights: Knight]
+
+       String toString() { name }
+
+       static constraints = {
+           name blank: false
+           city blank: false
+           country blank: false
+           latitude nullable: true, range: -90d..90d
+           longitude nullable: true, range: -180d..180d
+       }
+   }
+   ```
+
+   The coordinates are `Double`, not `double`, and `nullable: true`, because a castle created through the web form has no coordinates until the geocoder in Lab 7 supplies them. A primitive `double` would default to zero and put every new castle in the Gulf of Guinea.
+
+### Step 2: Knight, and the Bridge of Death
+
+1. Generate the class:
+
+   ```bash
+   ./grailsw create-domain-class Knight
+   ```
+
+2. Replace `grails-app/domain/com/kousenit/Knight.groovy`:
+
+   ```groovy
+   package com.kousenit
+
+   class Knight {
+       String title = 'Sir'
+       String name
+       String favouriteColour
+       Quest quest
+       Castle castle
+
+       String toString() { "$title $name" }
+
+       static constraints = {
+           title inList: ['Sir', 'Lord', 'Lady', 'King', 'Queen']
+           name blank: false
+           favouriteColour nullable: true, validator: { String colour, Knight knight ->
+               // The Bridgekeeper asks every knight. Only Galahad is allowed not to know.
+               if (!colour && !knight.name.contains('Galahad')) {
+                   return 'bridgeOfDeath'
+               }
+           }
+           quest nullable: true
+           castle nullable: true
+       }
+   }
+   ```
+
+   Three things are new here:
+
+   - **`inList`** restricts a property to a fixed set of values. The scaffolding turns it into a dropdown.
+   - **Plain references, not `belongsTo`.** A knight refers to a quest and a castle, but neither owns the knight. Knights between quests and knights without a castle are both legal, hence `nullable: true`, and deleting a quest does not delete its knights.
+   - **A validator that returns an error code.** Lab 2's validator returned `true` or `false`. This one returns a `String`, which becomes the error code, so the message key is `knight.favouriteColour.bridgeOfDeath` instead of the generic `validator.invalid`. Returning nothing means the value is fine. Note that the closure runs even when the value is `null`; `nullable: true` turns off the nullable check but not your own.
+
+   The rule itself: at the Bridge of Death, every knight is asked their favourite colour. Lancelot says "Blue" and crosses. Galahad says "Blue. No, yellow!" and is cast into the Gorge of Eternal Peril. So every knight must record a favourite colour, except Galahad, who is excused for never having managed a straight answer.
+
+3. Add the message to `grails-app/i18n/messages.properties`:
+
+   ```properties
+   knight.favouriteColour.bridgeOfDeath=What... is your favourite colour? Every knight must answer the Bridgekeeper (Galahad excepted)
+   ```
+
+4. Give `Quest` its knights. In `Quest.groovy`:
+
+   ```groovy
+   static hasMany = [tasks: Task, knights: Knight]
+   ```
+
+### Step 3: Scaffolding for both
+
+```bash
+./grailsw generate-all com.kousenit.Castle
+./grailsw generate-all com.kousenit.Knight
+```
+
+Fill in `populateValidParams` in the two new controller specs, with `name`, `city`, and `country` for a castle, and `name` plus `favouriteColour` for a knight, and replace `setupData` and the `save` test in `CastleServiceSpec` and `KnightServiceSpec` as you did in Labs 1 and 2. Five castles and five knights each; the finished versions are in the repository if you would rather read than type.
+
+### Step 4: Test the Bridgekeeper
+
+Replace `src/test/groovy/com/kousenit/KnightSpec.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.testing.gorm.DomainUnitTest
+import spock.lang.Specification
+import spock.lang.Unroll
+
+class KnightSpec extends Specification implements DomainUnitTest<Knight> {
+
+    void "a knight needs a name and a valid title"() {
+        expect:
+        new Knight(name: 'Lancelot', favouriteColour: 'Blue').validate()
+        !new Knight(name: ' ', favouriteColour: 'Blue').validate()
+        !new Knight(title: 'Squire', name: 'Patsy', favouriteColour: 'Brown').validate()
+    }
+
+    void "quest and castle are optional, because knights wander"() {
+        expect:
+        new Knight(name: 'Robin', favouriteColour: 'Yellow').validate()
+    }
+
+    @Unroll
+    void "#name must answer the Bridgekeeper"() {
+        when:
+        Knight knight = new Knight(name: name)
+
+        then:
+        !knight.validate()
+        knight.errors['favouriteColour'].code == 'bridgeOfDeath'
+
+        where:
+        name << ['Lancelot the Brave', 'Robin the Not-Quite-So-Brave-as-Sir-Lancelot', 'Bedevere the Wise']
+    }
+
+    void "Galahad does not have to know his favourite colour"() {
+        expect:
+        new Knight(name: 'Galahad the Pure').validate()
+    }
+
+    void "Galahad may still have one, as long as he does not change his mind"() {
+        expect:
+        new Knight(name: 'Galahad the Pure', favouriteColour: 'Blue. No, yellow!').validate()
+    }
+}
+```
+
+and `CastleSpec.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.testing.gorm.DomainUnitTest
+import spock.lang.Specification
+
+class CastleSpec extends Specification implements DomainUnitTest<Castle> {
+
+    Castle doune = new Castle(name: 'Camelot', city: 'Doune', country: 'Scotland')
+
+    void "coordinates are optional until the geocoder fills them in"() {
+        expect:
+        doune.validate()
+        doune.latitude == null
+    }
+
+    void "coordinates must be on the planet"() {
+        when:
+        doune.latitude = 91
+        doune.longitude = -181
+
+        then:
+        !doune.validate()
+        doune.errors['latitude'].code == 'range.toobig'
+        doune.errors['longitude'].code == 'range.toosmall'
+    }
+}
+```
+
+Run `./gradlew test`.
+
+### Step 5: Seed the court
+
+The castles are the places the film was shot. Doune Castle, north of Stirling, played Camelot as well as the interiors of Swamp Castle, Castle Anthrax, and the French castle. Castle Stalker, on its island near Port Appin, was Castle Aaargh. Bodiam Castle in East Sussex was Swamp Castle from the outside.
+
+1. Add a second method to `SeedData.groovy`. The coordinates are hard-coded so that the application never needs the network to start:
+
+   ```groovy
+   static List<Castle> theCourt(Quest quest) {
+       Castle camelot = new Castle(name: 'Camelot', city: 'Doune', country: 'Scotland',
+               latitude: 56.1853d, longitude: -4.0509d)
+               .addToKnights(title: 'King', name: 'Arthur', favouriteColour: 'Blue', quest: quest)
+               .addToKnights(name: 'Lancelot the Brave', favouriteColour: 'Blue', quest: quest)
+               .addToKnights(name: 'Galahad the Pure', quest: quest)
+               .addToKnights(name: 'Robin the Not-Quite-So-Brave-as-Sir-Lancelot', favouriteColour: 'Yellow', quest: quest)
+               .addToKnights(name: 'Bedevere the Wise', favouriteColour: 'Green', quest: quest)
+               .save(failOnError: true)
+       Castle aaargh = new Castle(name: 'Castle Aaargh', city: 'Port Appin', country: 'Scotland',
+               latitude: 56.5695d, longitude: -5.3870d)
+               .save(failOnError: true)
+       Castle swamp = new Castle(name: 'Swamp Castle', city: 'Robertsbridge', country: 'England',
+               latitude: 51.0023d, longitude: 0.5436d)
+               .addToKnights(title: 'Lord', name: 'of Swamp Castle', favouriteColour: 'Huge tracts of land')
+               .save(failOnError: true)
+       [camelot, aaargh, swamp]
+   }
+   ```
+
+   Saving a castle cascades to its knights, because `Castle hasMany knights`. Each knight also points at the quest, so after this runs, `quest.knights` has five members without anyone calling `addToKnights` on the quest. GORM maintains both sides.
+
+2. Call it from `BootStrap.groovy`:
+
+   ```groovy
+   Quest quest = SeedData.seekTheGrail()
+   SeedData.theCourt(quest)
+   ```
+
+3. Run the app. Camelot's show page lists five knights, the quest's show page lists the same five, and **New Knight** has a title dropdown. Try to save a knight with no favourite colour, then try again with a name containing Galahad.
+
+### Key Learning Points
+
+- `inList` for enumerated values; the scaffolding renders a select.
+- Associations without `belongsTo` are plain references: optional, and not cascaded on delete.
+- A validator closure can return an error code of your own, which gives it its own message key.
+- Validators run for `null` values; `nullable: true` only disables the built-in nullable check.
+- Use wrapper types (`Double`) for optional numeric properties so that "unknown" is `null`, not zero.
+- When both sides of an association are set during seeding, GORM keeps them consistent.
+
+### Checkpoint
+
+```bash
+git checkout step5-model
+```

@@ -6,7 +6,8 @@ class BootStrap {
 
     def init = { servletContext ->
         if (Environment.current != Environment.TEST && Quest.count() == 0) {
-            SeedData.seekTheGrail()
+            Quest quest = SeedData.seekTheGrail()
+            SeedData.theCourt(quest)
         }
     }
 

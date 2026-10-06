@@ -22,4 +22,28 @@ class SeedData {
                 .addToTasks(name: 'Lobbeth the Holy Hand Grenade of Antioch', priority: 5, startDate: today + 2, endDate: today + 2)
                 .save(failOnError: true)
     }
+
+    /**
+     * Where the film was shot: Doune Castle played Camelot (and Swamp Castle's
+     * interior, Castle Anthrax, and the French castle); Castle Stalker was
+     * Castle Aaargh. Coordinates are hard-coded so startup never needs the network.
+     */
+    static List<Castle> theCourt(Quest quest) {
+        Castle camelot = new Castle(name: 'Camelot', city: 'Doune', country: 'Scotland',
+                latitude: 56.1853d, longitude: -4.0509d)
+                .addToKnights(title: 'King', name: 'Arthur', favouriteColour: 'Blue', quest: quest)
+                .addToKnights(name: 'Lancelot the Brave', favouriteColour: 'Blue', quest: quest)
+                .addToKnights(name: 'Galahad the Pure', quest: quest)
+                .addToKnights(name: 'Robin the Not-Quite-So-Brave-as-Sir-Lancelot', favouriteColour: 'Yellow', quest: quest)
+                .addToKnights(name: 'Bedevere the Wise', favouriteColour: 'Green', quest: quest)
+                .save(failOnError: true)
+        Castle aaargh = new Castle(name: 'Castle Aaargh', city: 'Port Appin', country: 'Scotland',
+                latitude: 56.5695d, longitude: -5.3870d)
+                .save(failOnError: true)
+        Castle swamp = new Castle(name: 'Swamp Castle', city: 'Robertsbridge', country: 'England',
+                latitude: 51.0023d, longitude: 0.5436d)
+                .addToKnights(title: 'Lord', name: 'of Swamp Castle', favouriteColour: 'Huge tracts of land')
+                .save(failOnError: true)
+        [camelot, aaargh, swamp]
+    }
 }

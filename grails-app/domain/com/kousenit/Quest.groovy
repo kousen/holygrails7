@@ -7,7 +7,7 @@ class Quest {
     LocalDateTime dateCreated
     LocalDateTime lastUpdated
 
-    static hasMany = [tasks: Task]
+    static hasMany = [tasks: Task, knights: Knight]
 
     String toString() { name }
 
