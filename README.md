@@ -1,33 +1,37 @@
-## Grails 7.2.4 Documentation
+# The Quest for the Holy Grails
 
-- [User Guide](https://grails.apache.org/docs/7.2.4/guide/index.html)
-- [API Reference](https://grails.apache.org/docs/7.2.4/api/index.html)
-- [Grails Guides](https://guides.grails.org/index.html)
----
+A complete [Apache Grails 7](https://grails.apache.org) application built in stages around a Monty Python quest domain: knights, castles, quests, tasks, and the enemies in the way. It accompanies the talk *The Quest for the Holy Grails: A Grails 7 Tutorial* at Community Over Code, Glasgow, October 2026.
 
-## Feature testcontainers documentation
+**Start with [labs.md](labs.md).** It walks through every stage, from generating the project to a JSON API, and each stage ends with a git tag:
 
-- [https://java.testcontainers.org/](https://java.testcontainers.org/)
+| Tag | Lab |
+|---|---|
+| `step0-starter` | Creating the project |
+| `step1-quest` | The first domain class, scaffolding, constraints |
+| `step2-task` | A related domain class, `belongsTo`, validators |
+| `step3-testing` | Unit testing domain classes with Spock |
+| `step4-queries` | Seed data; dynamic finders, criteria, where queries |
+| `step5-model` | Knight and Castle; the Bridge of Death validator |
+| `step6-scaffold` | `@Scaffold` replaces 535 lines of generated code |
+| `step7-geocoder` | A service calling Open-Meteo, tested with a Spy |
+| `step8-map` | A Leaflet map of the castles |
+| `step9-grails7` | What's new in Grails 7; a containerized Geb test |
+| `step10-enemies` | Inheritance in GORM |
+| `step11-json` | JSON views and `HttpClientSupport` |
 
-## Feature spring-boot-devtools documentation
+`main` is the finished application. To see a stage, `git checkout <tag>`.
 
-- [Grails SpringBoot Developer Tools documentation](https://docs.spring.io/spring-boot/reference/using/devtools.html)
+## Running it
 
-## Feature scaffolding documentation
+Requires JDK 21 and Grails 7.2.4; `sdk env` selects both via [SDKMAN](https://sdkman.io). Docker is needed only for the browser tests.
 
-- [Grails Scaffolding documentation](https://grails.apache.org/docs/7.2.4/guide/scaffolding.html)
+```bash
+./grailsw run-app          # http://localhost:8080
+./gradlew test             # unit tests
+./gradlew integrationTest  # integration, HTTP and browser tests
+OFFLINE=1 ./gradlew integrationTest   # skip the live geocoder test
+```
 
-## Feature mockito documentation
+## Licence
 
-- [https://site.mockito.org](https://site.mockito.org)
-
-## Feature geb-with-testcontainers documentation
-
-- [Grails Geb Functional Testing for Grails with Testcontainers documentation](https://github.com/apache/grails-geb#readme)
-
-- [https://groovy.apache.org/geb/manual/current/](https://groovy.apache.org/geb/manual/current/)
-
-## Feature asset-pipeline-grails documentation
-
-- [Grails Asset Pipeline documentation](https://github.com/wondrify/asset-pipeline#readme)
-
+Apache License 2.0.

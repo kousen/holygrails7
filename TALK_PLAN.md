@@ -98,7 +98,7 @@ entirely, or wave at scaffolding once and move on.
   talk is at 17:00 the same day; Mattias covers Geb/Testcontainers. One line
   acknowledging each and hand off.
 
-## Stages
+## Stages (all built and tagged, 6 Oct 2026; `labs.md` has the walkthrough)
 
 | Tag | Lab | In the demo? |
 |---|---|---|
