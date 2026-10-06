@@ -1908,7 +1908,7 @@ For a Grails 5 or 6 application, in the order that minimizes surprises:
 
 ### Step 4: Grails 8 is next
 
-Grails 8.0.0 was tagged on 4 October 2026 and was still marked pre-release when these labs were written. What it brings, from the release candidates: Groovy 5, Spring Boot 4, Spock 2.4, GORM for Hibernate 7, and Gradle 9.8, which is what makes Java 25 a supported build JDK. The upgrade path from 7 is designed to be incremental, which is one more reason to get to 7 first.
+Grails 8.0.0 was tagged on 4 October 2026 and was still marked pre-release when these labs were written. What it brings, from the release candidate documentation: a Java 21 baseline, Groovy 5.1, Spring Boot 4.1 on Spring Framework 7 (so Jackson 3, Tomcat 11, and Servlet 6.1), Spock 2.4, Forge-generated applications on Hibernate 7, and Gradle 9.8, which is what makes Java 25 a supported build JDK. The upgrade path from 7 is designed to be incremental, which is one more reason to get to 7 first.
 
 ### Key Learning Points
 

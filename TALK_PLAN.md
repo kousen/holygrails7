@@ -36,8 +36,11 @@ entirely, or wave at scaffolding once and move on.
 - 7.2.4 stack (from Forge BOM): Java 17/21/25, Groovy 4.0.33, Spring Boot
   3.5.16, Hibernate 5.6.15 (GORM default), H2 2.4, Geb 8.0.1, Spock 2.3,
   Gradle 8.14.5.
-- 8.0.0-RC2 stack: Groovy 5.1.3, Spring Boot 4.1.1, Spock 2.4-groovy-5.0,
-  Hibernate 7 support in GORM, jQuery 4, Undertow option.
+- 8.0.0-RC2 stack (per its docs): **Java 21 baseline**, Gradle 9.8.0, Groovy 5.1.3,
+  Spring Boot 4.1.1 / Spring Framework 7.0.9 (Jackson 3, Tomcat 11, Servlet
+  6.1), Spock 2.4-groovy-5.0, Hibernate 7 via Forge, jQuery 4, Undertow option.
+  Grails 8's own build uses the CycloneDX Gradle plugin, which is probably
+  where the "SBOM" rumour came from; it is not an application feature.
 - Grails 7 features (verified against the 7.2.4 guide): containerized browser
   testing with Testcontainers (Geb), @Scaffold, HttpClientSupport (7.1),
   @DatabaseCleanup, custom test phases (7.1), audit annotations (7.1), external

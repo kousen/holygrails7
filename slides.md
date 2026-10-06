@@ -868,12 +868,12 @@ Tagged 4 October 2026, pre-release as of this talk
 
 | | Grails 7.2 | Grails 8.0 |
 |---|---|---|
+| Java | 17 to 24 | **21** to **25** |
 | Groovy | 4.0 | **5.1** |
-| Spring Boot | 3.5 | **4.1** |
-| Hibernate | 5.6 | **7** |
+| Spring Boot / Framework | 3.5 / 6.2 | **4.1 / 7.0** (Jackson 3, Tomcat 11) |
+| Hibernate | 5.6 | 5.6, or **7** via Forge |
 | Spock | 2.3 | **2.4** |
 | Gradle | 8.14 | **9.8** |
-| Java | 17 to 24 | 17 to **25** |
 
 The upgrade from 7 is designed to be incremental. Get to 7 first.
 
