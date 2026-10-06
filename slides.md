@@ -888,9 +888,10 @@ Tagged 4 October 2026, pre-release as of this talk
 | Spock | 2.3 | **2.4** |
 | Gradle | 8.14 | **9.8** |
 
-The upgrade from 7 is designed to be incremental. Get to 7 first.
+Hibernate dropped its Criteria API in 6. GORM kept yours: on Hibernate 7 the same `withCriteria` DSL is re-based on JPA Criteria.
 
 <!--
+The upgrade from 7 is designed to be incremental: get to 7 first.
 James's talk at 17:00 covers 8 properly. One line and hand off.
 -->
 
