@@ -115,6 +115,11 @@ entirely, or wave at scaffolding once and move on.
 | `step10-enemies` | Enemy hierarchy (GORM inheritance) | If time |
 | `step11-json` | JSON views endpoint + HttpClientSupport | Optional |
 
+## Slides
+
+- `slides.md` (Slidev, seriph theme, 42 slides) built 6 Oct 2026; `npm run export`
+  produces the PDF. Speaker notes mark the LIVE moments.
+
 ## Practical notes
 
 - Live-code only what the table marks Live; everything else is `git checkout`.

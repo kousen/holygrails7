@@ -43,3 +43,10 @@ out/
 Thumbs.db
 .DS_Store
 target/
+
+# Slidev
+node_modules/
+dist/
+*.pdf
+.slidev/
+.playwright-mcp/

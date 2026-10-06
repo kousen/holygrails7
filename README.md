@@ -32,6 +32,18 @@ Requires JDK 21 and Grails 7.2.4; `sdk env` selects both via [SDKMAN](https://sd
 OFFLINE=1 ./gradlew integrationTest   # skip the live geocoder test
 ```
 
+## Slides
+
+The talk deck is `slides.md`, a [Slidev](https://sli.dev) presentation:
+
+```bash
+npm install
+npm run dev      # present at http://localhost:3030
+npm run export   # holygrails7-slides.pdf
+```
+
+The title photo of Doune Castle is by Bill Boaden, CC BY-SA 2.0, via geograph.org.uk and Wikimedia Commons.
+
 ## Licence
 
 Apache License 2.0.
