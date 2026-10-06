@@ -65,6 +65,7 @@ dependencies {
     runtimeOnly "com.zaxxer:HikariCP"
     runtimeOnly "org.fusesource.jansi:jansi"
     integrationTestImplementation testFixtures("org.apache.grails:grails-geb")
+    integrationTestImplementation "org.seleniumhq.selenium:selenium-firefox-driver"
     testImplementation "org.apache.grails:grails-testing-support-datamapping"
     testImplementation "org.apache.grails:grails-testing-support-web"
     testImplementation "org.mockito:mockito-core"

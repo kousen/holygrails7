@@ -6,6 +6,8 @@ info:
 grails:
   codegen:
     defaultPackage: com.kousenit
+  databinding:
+    convertEmptyStringsToNull: false
   profile: web
   mime:
     types:
