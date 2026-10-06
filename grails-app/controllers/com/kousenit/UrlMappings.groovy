@@ -9,6 +9,7 @@ class UrlMappings {
             }
         }
 
+        "/api/quests"(resources: "questApi")
         "/"(view:"/index")
         "500"(view:'/error')
         "404"(view:'/notFound')

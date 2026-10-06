@@ -1,0 +1,7 @@
+import com.kousenit.Quest
+
+model {
+    Quest quest
+}
+
+json g.render(template: 'quest', model: [quest: quest])

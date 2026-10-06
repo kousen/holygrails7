@@ -1,0 +1,16 @@
+import com.kousenit.Quest
+
+model {
+    Quest quest
+}
+
+// A freshly created quest has null collections, hence the safe navigation.
+json {
+    id quest.id
+    name quest.name
+    knights quest.knights?.collect { it.toString() }?.sort() ?: []
+    tasks quest.tasks?.sort { it.priority }?.collect { task ->
+        [name: task.name, priority: task.priority, completed: task.completed]
+    } ?: []
+    remaining quest.tasks?.count { !it.completed } ?: 0
+}

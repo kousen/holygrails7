@@ -2267,3 +2267,213 @@ class EnemyControllerSpec extends Specification implements ControllerUnitTest<En
 ```bash
 git checkout step10-enemies
 ```
+
+## Lab 11: Optional: A JSON API for the Quest
+
+Lab 6 showed that `RestfulController` answers JSON requests by default, serializing the whole domain object. That is fine for a quick look and wrong for an API: you rarely want every property, and you often want computed ones. **JSON views** give you a Groovy DSL for shaping the response, and Grails 7.1's **HttpClientSupport** trait gives you a fluent way to test the result over real HTTP. This lab builds an endpoint an AI client could call to ask how the quest is going.
+
+### Step 1: Dependencies
+
+Add JSON views to the application and the HTTP test support to the integration tests, in `build.gradle`:
+
+```groovy
+implementation "org.apache.grails:grails-views-gson"
+```
+
+```groovy
+integrationTestImplementation "org.apache.grails:grails-testing-support-http-client"
+integrationTestImplementation "org.apache.grails:grails-testing-support-dbcleanup-h2"
+```
+
+The third line is for `@DatabaseCleanup`, described in Step 5.
+
+### Step 2: A REST controller and a URL mapping
+
+Create `grails-app/controllers/com/kousenit/QuestApiController.groovy`. It is a `RestfulController`, like the scaffolded ones, restricted to JSON:
+
+```groovy
+package com.kousenit
+
+import grails.rest.RestfulController
+
+class QuestApiController extends RestfulController<Quest> {
+
+    static responseFormats = ['json']
+
+    QuestApiController() {
+        super(Quest)
+    }
+}
+```
+
+Map it to a path in `grails-app/controllers/com/kousenit/UrlMappings.groovy`, above the `"/"` mapping:
+
+```groovy
+"/api/quests"(resources: "questApi")
+```
+
+`resources:` creates the full RESTful set of mappings for the controller: `GET /api/quests` to `index`, `GET /api/quests/1` to `show`, `POST /api/quests` to `save`, `PUT` and `PATCH` to `update`, `DELETE` to `delete`. Run `./grailsw url-mappings-report` to see them.
+
+### Step 3: JSON views
+
+JSON views live in `grails-app/views/<controller>/` with the extension `.gson`. Create three files in `grails-app/views/questApi/`.
+
+The template, `_quest.gson`, decides what one quest looks like:
+
+```groovy
+import com.kousenit.Quest
+
+model {
+    Quest quest
+}
+
+// A freshly created quest has null collections, hence the safe navigation.
+json {
+    id quest.id
+    name quest.name
+    knights quest.knights?.collect { it.toString() }?.sort() ?: []
+    tasks quest.tasks?.sort { it.priority }?.collect { task ->
+        [name: task.name, priority: task.priority, completed: task.completed]
+    } ?: []
+    remaining quest.tasks?.count { !it.completed } ?: 0
+}
+```
+
+`index.gson` wraps the list the controller's `index` action responds with:
+
+```groovy
+import com.kousenit.Quest
+
+model {
+    List<Quest> questList
+    Integer questCount
+}
+
+json {
+    count questCount
+    quests g.render(template: 'quest', collection: questList, var: 'quest')
+}
+```
+
+and `show.gson` renders a single one:
+
+```groovy
+import com.kousenit.Quest
+
+model {
+    Quest quest
+}
+
+json g.render(template: 'quest', model: [quest: quest])
+```
+
+The `model` block declares the variables the view expects, with types, and the views are compiled, so a typo in a property name is a compile error rather than a surprise in production. `g.render(template:)` reuses the template for one object or a collection. The property names `questList` and `questCount` are what `RestfulController.index` puts in the model.
+
+Start the app and try it:
+
+```bash
+curl http://localhost:8080/api/quests
+curl http://localhost:8080/api/quests/1
+curl -X POST -H "Content-Type: application/json" -d '{"name":"Find a shrubbery"}' http://localhost:8080/api/quests
+```
+
+### Step 4: Test it over HTTP
+
+Create `src/integration-test/groovy/com/kousenit/QuestApiSpec.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.testing.mixin.integration.Integration
+import org.apache.grails.testing.cleanup.core.DatabaseCleanup
+import org.apache.grails.testing.http.client.HttpClientSupport
+import spock.lang.Specification
+
+@Integration
+@DatabaseCleanup
+class QuestApiSpec extends Specification implements HttpClientSupport {
+
+    def setup() {
+        Quest.withNewTransaction {
+            SeedData.theCourt(SeedData.seekTheGrail())
+        }
+    }
+
+    void "the quest list is JSON shaped by the view"() {
+        when:
+        def response = http('/api/quests')
+
+        then:
+        response.assertStatus(200)
+                .assertHeadersIgnoreCase('content-type': 'application/json;charset=UTF-8')
+        with(response.json()) {
+            count == 1
+            quests[0].name == 'Seek the grail'
+            quests[0].knights.size() == 5
+            quests[0].tasks.size() == 9
+            quests[0].remaining == 6
+            quests[0].tasks*.priority == quests[0].tasks*.priority.sort()
+        }
+    }
+
+    void "a single quest can be fetched by id"() {
+        given:
+        Long id = Quest.withNewTransaction { Quest.findByName('Seek the grail').id }
+
+        when:
+        def response = http("/api/quests/$id")
+
+        then:
+        response.assertJsonContains([name: 'Seek the grail', remaining: 6])
+    }
+
+    void "posting JSON creates a quest"() {
+        when:
+        def response = httpPostJson('/api/quests', [name: 'Find a shrubbery'])
+
+        then:
+        response.assertStatus(201)
+        response.assertJsonContains([name: 'Find a shrubbery', knights: [], tasks: [], remaining: 0])
+        Quest.withNewTransaction { Quest.countByName('Find a shrubbery') } == 1
+    }
+
+    void "a blank name is rejected with 422"() {
+        when:
+        def response = httpPostJson('/api/quests', [name: ' '])
+
+        then:
+        response.assertStatus(422)
+        response.assertContains('Quests must have a name')
+    }
+
+    void "unknown quests are 404"() {
+        expect:
+        http('/api/quests/9999').assertStatus(404)
+    }
+}
+```
+
+`HttpClientSupport` knows the port the `@Integration` test started the app on, so paths are relative. `http()` performs a GET, `httpPostJson()` turns a map into a JSON body, and the response wrapper's `assert...` methods chain. `response.json()` parses the body so you can use Spock's `with` on it.
+
+Run it:
+
+```bash
+./gradlew integrationTest --tests 'com.kousenit.QuestApiSpec'
+```
+
+### Step 5: Cleaning up committed data
+
+This spec makes real HTTP requests to a running server, so `@Rollback` cannot help: the request runs in its own transaction and commits. Earlier Grails versions left you to delete the data by hand in `cleanup()`. Grails 7 adds `@DatabaseCleanup`, which truncates every table after each test method. It needs the cleanup module for your database, `grails-testing-support-dbcleanup-h2` here, and nothing else. The functional Geb test from Lab 9 uses the same annotation.
+
+### Key Learning Points
+
+- `RestfulController` plus a `resources:` URL mapping is a complete REST endpoint; `responseFormats` restricts it to JSON.
+- JSON views are compiled Groovy with a typed `model` block and reusable templates.
+- `HttpClientSupport` (7.1+) tests endpoints over real HTTP with fluent assertions and parsed JSON.
+- `@DatabaseCleanup` replaces hand-written cleanup for tests that commit data.
+
+### Checkpoint
+
+```bash
+git checkout step11-json
+```

@@ -1,0 +1,11 @@
+import com.kousenit.Quest
+
+model {
+    List<Quest> questList
+    Integer questCount
+}
+
+json {
+    count questCount
+    quests g.render(template: 'quest', collection: questList, var: 'quest')
+}

@@ -54,6 +54,7 @@ dependencies {
     implementation "org.apache.grails:grails-services"
     implementation "org.apache.grails:grails-url-mappings"
     implementation "org.apache.grails:grails-web-boot"
+    implementation "org.apache.grails:grails-views-gson"
     implementation "org.springframework.boot:spring-boot-autoconfigure"
     implementation "org.springframework.boot:spring-boot-starter"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
@@ -68,6 +69,7 @@ dependencies {
     runtimeOnly "org.fusesource.jansi:jansi"
     integrationTestImplementation testFixtures("org.apache.grails:grails-geb")
     integrationTestImplementation "org.seleniumhq.selenium:selenium-firefox-driver"
+    integrationTestImplementation "org.apache.grails:grails-testing-support-http-client"
     integrationTestImplementation "org.apache.grails:grails-testing-support-dbcleanup-h2"
     testImplementation "org.apache.grails:grails-testing-support-datamapping"
     testImplementation "org.apache.grails:grails-testing-support-web"
