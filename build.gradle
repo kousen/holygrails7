@@ -63,6 +63,7 @@ dependencies {
     console "org.apache.grails:grails-console"
     runtimeOnly "cloud.wondrify:asset-pipeline-grails"
     runtimeOnly "com.h2database:h2"
+    runtimeOnly "org.webjars.npm:leaflet:1.9.4"
     runtimeOnly "com.zaxxer:HikariCP"
     runtimeOnly "org.fusesource.jansi:jansi"
     integrationTestImplementation testFixtures("org.apache.grails:grails-geb")

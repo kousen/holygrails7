@@ -1644,3 +1644,129 @@ curl -H "Accept: application/json" http://localhost:8080/castle/show/4
 ```bash
 git checkout step7-geocoder
 ```
+
+## Lab 8: Mapping the Castles
+
+The castles have coordinates; let us see them. This lab puts an [OpenStreetMap](https://www.openstreetmap.org) map on the castle list page using [Leaflet](https://leafletjs.com), the standard open-source JavaScript mapping library. Along the way you take over one scaffolded view, add an action to a `@Scaffold` controller, and serve a JavaScript library from a **webjar** so the page has no CDN dependency.
+
+### Step 1: Leaflet as a webjar
+
+[WebJars](https://www.webjars.org) package npm libraries as Maven artifacts. Spring Boot serves anything under `META-INF/resources/webjars` on the classpath at `/webjars/**`, and Grails inherits that. Add to the `dependencies` block of `build.gradle`:
+
+```groovy
+runtimeOnly "org.webjars.npm:leaflet:1.9.4"
+```
+
+After the next restart, `http://localhost:8080/webjars/leaflet/1.9.4/dist/leaflet.js` serves the library from the jar. The map tiles themselves still come from OpenStreetMap's servers, so the page needs the network to show a map, but not to load.
+
+### Step 2: Take over the list view
+
+Lab 6 left `Castle` with no GSP files; the scaffolding renders them from templates at runtime. To customize the list page, generate the static versions and keep only the one you want:
+
+```bash
+./grailsw generate-views com.kousenit.Castle
+rm grails-app/views/castle/create.gsp grails-app/views/castle/edit.gsp grails-app/views/castle/show.gsp
+```
+
+Now `index.gsp` is yours and the other three pages stay dynamic. Open `grails-app/views/castle/index.gsp`.
+
+1. At the very top, before `<!DOCTYPE html>`, import the JSON converter for use later:
+
+   ```jsp
+   <%@ page import="grails.converters.JSON" %>
+   ```
+
+2. In `<head>`, after the `<title>`, load Leaflet from the webjar and give the map a height:
+
+   ```html
+   <link rel="stylesheet" href="${createLink(uri: '/webjars/leaflet/1.9.4/dist/leaflet.css')}"/>
+   <script src="${createLink(uri: '/webjars/leaflet/1.9.4/dist/leaflet.js')}"></script>
+   <style>#map { height: 420px; }</style>
+   ```
+
+   `createLink(uri:)` prefixes the context path, so the page keeps working if the app is ever deployed under `/holygrails`.
+
+3. Above the `<f:table ...>` tag, add the map container:
+
+   ```html
+   <div id="map" class="mb-3 border rounded"></div>
+   ```
+
+4. Just before `</body>`, add the script that draws the markers. The marker data comes from the model as a Groovy list, rendered into the page as JSON:
+
+   ```html
+   <script>
+       const markers = ${raw((markers as JSON).toString())};
+       // Wait for the stylesheets: Leaflet needs the container's final size to fit the bounds.
+       window.addEventListener('load', () => {
+           const map = L.map('map');
+           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+               maxZoom: 18,
+               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+           }).addTo(map);
+           const group = L.featureGroup(markers.map(m =>
+               L.marker([m.lat, m.lng]).bindPopup(
+                   `<strong><a href="${'$'}{m.url}">${'$'}{m.name}</a></strong><br>${'$'}{m.city}<br>${'$'}{m.knights} knight(s)`)
+           )).addTo(map);
+           if (markers.length) {
+               map.fitBounds(group.getBounds().pad(0.2));
+           } else {
+               map.setView([56.19, -4.05], 6);
+           }
+       });
+   </script>
+   ```
+
+   The `load` listener matters: the page's stylesheets, including Leaflet's, arrive after this script runs, and `fitBounds` computed against a container with no height yet produces a map zoomed out to the whole world. Waiting for `load` gives Leaflet the real size.
+
+   Two GSP details here. `raw()` stops GSP from HTML-encoding the JSON, which would turn every quote into `&quot;`. And a JavaScript template literal's `${...}` looks exactly like a GSP expression, so it is written as `${'$'}{m.name}`: GSP evaluates `${'$'}` to a literal dollar sign and leaves the braces alone.
+
+### Step 3: Supply the markers from the controller
+
+The list page now expects a `markers` entry in the model. The `@Scaffold` controller can override the scaffolded `index` action to add it. Edit `grails-app/controllers/com/kousenit/CastleController.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.plugin.scaffolding.annotation.Scaffold
+import grails.plugin.scaffolding.RestfulServiceController
+
+@Scaffold(RestfulServiceController<Castle>)
+class CastleController {
+
+    /** The scaffolded index, plus one extra model entry: every castle that knows where it is. */
+    def index(Integer max) {
+        params.max = Math.min(max ?: 10, 100)
+        respond listAllResources(params), model: [castleCount: countResources(), markers: markers()]
+    }
+
+    private List<Map> markers() {
+        Castle.findAllByLatitudeIsNotNullAndLongitudeIsNotNull().collect { Castle castle ->
+            [name: castle.name, city: castle.city, lat: castle.latitude, lng: castle.longitude,
+             knights: castle.knights.size(), url: createLink(action: 'show', id: castle.id)]
+        }
+    }
+}
+```
+
+The first two lines of `index` are what `RestfulController` does by itself: `listAllResources` and `countResources` are its protected methods, and because `@Scaffold` made this class a real subclass, you can call them. The third model entry is ours. `respond` renders the `castleList` for the table as before, and the whole model is available to the GSP.
+
+The finder `findAllByLatitudeIsNotNullAndLongitudeIsNotNull` is a mouthful, but it reads as what it does, and it keeps castles that failed geocoding off the map rather than dropping them in the Atlantic at 0, 0.
+
+### Step 4: Look
+
+Restart and open http://localhost:8080/castle. Three markers in Britain: Camelot and Castle Aaargh in Scotland, Swamp Castle on the south coast of England. Click a marker for the castle name, town, and knight count, with a link to its show page. If you created Castle Anthrax in Lab 7, it sits on top of Camelot, since both are Doune Castle.
+
+### Key Learning Points
+
+- Webjars put front-end libraries on the classpath; Spring Boot serves them at `/webjars/**` with no configuration.
+- `generate-views` lets you take over a single scaffolded page while the rest stay dynamic.
+- A `@Scaffold` controller can override or add actions, and call `RestfulController`'s protected helpers.
+- `raw()` disables GSP's HTML encoding when you mean to emit markup or JSON. Use it only for data you trust.
+- `${'$'}` is how a GSP emits a literal dollar sign for JavaScript template literals.
+
+### Checkpoint
+
+```bash
+git checkout step8-map
+```
