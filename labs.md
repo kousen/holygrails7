@@ -680,3 +680,137 @@ This produces the same set of files as for `Quest`: controller, data service, fo
 ```bash
 git checkout step2-task
 ```
+
+## Lab 3: Unit Testing Domain Classes
+
+Grails tests are written in [Spock](https://spockframework.org), and the `grails-testing-support` libraries supply traits that stand up just enough of Grails for the class under test. In this lab you test every constraint on `Task` without a database, and you learn the error codes each constraint produces, which is what your `messages.properties` keys are built from.
+
+### Step 1: Know the traits
+
+Open `src/test/groovy/com/kousenit/TaskSpec.groovy`. It implements `DomainUnitTest<Task>`. That trait gives `Task` its GORM methods (`validate()`, `save()`, `count()`, dynamic finders) backed by an in-memory simple datastore, with no Hibernate and no H2. It also registers constraints, so `validate()` and `errors` behave as they do in the running application.
+
+Other traits you will meet: `ControllerUnitTest<T>` (used by the generated controller specs), `ServiceUnitTest<T>` (Lab 7), and `DataTest`, which lets a unit test mock several domain classes at once with `mockDomains(Quest, Task)`.
+
+### Step 2: Test every constraint by its error code
+
+Replace `TaskSpec.groovy` with the version below. Each test changes one property on the shared `task` and checks both that validation fails and *which* constraint failed:
+
+```groovy
+package com.kousenit
+
+import grails.testing.gorm.DomainUnitTest
+import spock.lang.Shared
+import spock.lang.Specification
+import spock.lang.Unroll
+
+class TaskSpec extends Specification implements DomainUnitTest<Task> {
+
+    @Shared Quest quest = new Quest(name: 'Seek the grail')
+    Task task = new Task(name: 'Defeat the Black Knight', quest: quest)
+
+    void "a task with defaults is valid"() {
+        expect:
+        task.validate()
+        task.priority == 3
+        !task.completed
+    }
+
+    void "a task that starts and ends today lasts one day"() {
+        expect:
+        task.duration == 1
+    }
+
+    void "duration counts both end points"() {
+        when: 'the task ends two days after it starts'
+        task.endDate = task.startDate.plusDays(2)
+
+        then: 'it lasts three days'
+        task.duration == 3
+    }
+
+    void "a blank name is not valid"() {
+        when:
+        task.name = ' '
+
+        then:
+        !task.validate()
+        task.errors['name'].code == 'blank'
+    }
+
+    void "a task needs a quest"() {
+        when:
+        task.quest = null
+
+        then:
+        !task.validate()
+        task.errors['quest'].code == 'nullable'
+    }
+
+    void "priorities below 1 are not valid"() {
+        when:
+        task.priority = 0
+
+        then:
+        !task.validate()
+        task.errors['priority'].code == 'range.toosmall'
+    }
+
+    void "priorities above 5 are not valid"() {
+        when:
+        task.priority = 6
+
+        then:
+        !task.validate()
+        task.errors['priority'].code == 'range.toobig'
+    }
+
+    @Unroll
+    void "a task with priority #priority is valid"() {
+        when:
+        task.priority = priority
+
+        then:
+        task.validate()
+
+        where:
+        priority << (1..5)
+    }
+
+    void "the end date may not precede the start date"() {
+        when:
+        task.endDate = task.startDate.minusDays(1)
+
+        then:
+        !task.validate()
+        task.errors['endDate'].code == 'validator.invalid'
+    }
+}
+```
+
+Things to notice:
+
+- **`@Shared`** keeps one `Quest` for all tests, since none of them change it. The `task` field has no annotation, so Spock builds a fresh one for every feature method; changing its priority in one test cannot leak into the next.
+- **`task.errors['name'].code`** reads the Spring `Errors` object GORM attaches after validation. The code is the last segment of the message key: `quest.name.blank` in `messages.properties` corresponds to code `blank` on property `name` of class `Quest`.
+- **`@Unroll`** with a `where:` block turns one feature method into five, one per priority. The `#priority` in the method name is replaced for each, so the test report lists *a task with priority 1 is valid* through *a task with priority 5 is valid*.
+- The `when:` and `then:` labels take optional descriptions. Use them when the test name alone does not say what the setup means.
+
+### Step 3: Run the tests
+
+```bash
+./gradlew test
+```
+
+Open `build/reports/tests/test/index.html` to see the unrolled names. Try breaking something, such as changing the range to `1..4`, to watch which tests catch it.
+
+### Key Learning Points
+
+- `DomainUnitTest<T>` tests a domain class with no database. Validation and GORM methods work; Hibernate is not involved.
+- Test constraints by their error code: `blank`, `nullable`, `range.toosmall`, `range.toobig`, `validator.invalid`. Those codes are what you customize in `messages.properties`.
+- `@Shared` for fixtures that no test mutates; plain fields for per-test state.
+- `@Unroll` plus a `where:` block replaces copy-and-paste tests.
+
+### Checkpoint
+
+```bash
+git checkout step3-testing
+```
