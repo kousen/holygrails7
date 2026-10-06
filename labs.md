@@ -1309,3 +1309,113 @@ The castles are the places the film was shot. Doune Castle, north of Stirling, p
 ```bash
 git checkout step5-model
 ```
+
+## Lab 6: Scaffolding with @Scaffold
+
+Every `generate-all` so far produced a 99-line controller, a 17-line service interface, four GSP files, and two test skeletons. That is **static scaffolding**: code you own, can read, and must maintain. Grails 7 adds a second option, the `@Scaffold` annotation, which does the same work at compile time and runtime and leaves nothing in your source tree but an empty class. This lab converts `Castle` to it, so you can compare the two side by side.
+
+### Step 1: Measure what you are about to delete
+
+```bash
+wc -l grails-app/controllers/com/kousenit/CastleController.groovy \
+      grails-app/services/com/kousenit/CastleService.groovy \
+      grails-app/views/castle/*.gsp \
+      src/test/groovy/com/kousenit/CastleControllerSpec.groovy
+```
+
+Five hundred and thirty-five lines, give or take, none of which you wrote.
+
+### Step 2: Delete it
+
+```bash
+git rm grails-app/controllers/com/kousenit/CastleController.groovy \
+       grails-app/services/com/kousenit/CastleService.groovy \
+       src/test/groovy/com/kousenit/CastleControllerSpec.groovy
+git rm -r grails-app/views/castle
+```
+
+Keep `CastleServiceSpec` in `src/integration-test`; it will need one small change.
+
+### Step 3: Generate the annotated versions
+
+```bash
+./grailsw generate-scaffold-all com.kousenit.Castle
+```
+
+The command writes two files. The controller:
+
+```groovy
+package com.kousenit
+
+import grails.plugin.scaffolding.annotation.Scaffold
+import grails.plugin.scaffolding.RestfulServiceController
+
+@Scaffold(RestfulServiceController<Castle>)
+class CastleController {}
+```
+
+and the service:
+
+```groovy
+package com.kousenit
+
+import grails.plugin.scaffolding.annotation.Scaffold
+
+@Scaffold(Castle)
+class CastleService {
+}
+```
+
+That is the whole Castle web layer now. How it works:
+
+- `@Scaffold` is processed by a Grails **AST transformation** at compile time. `@Scaffold(Castle)` on the service makes the class extend `GormService<Castle>`, which implements `get`, `list`, `count`, `save`, and `delete` against GORM. `@Scaffold(RestfulServiceController<Castle>)` on the controller makes it extend `RestfulController<Castle>` with the seven CRUD actions, and routes every data operation through the `CastleService` bean.
+- The simpler `@Scaffold(Castle)` on a controller also works; it extends `RestfulController` and talks to the domain class directly, with no service in between.
+- **Views** are generated at runtime, from the same templates `generate-all` uses, whenever no GSP exists for the action. If you later want to customize one page, run `./grailsw generate-views com.kousenit.Castle` and edit only the file you need. You will do exactly that for the map in Lab 8.
+- `RestfulController` responds to content negotiation. Try `curl -H "Accept: application/json" http://localhost:8080/castle/show/1` and you get the castle as JSON, knights included, without writing a JSON view.
+
+### Step 4: Fix the tests
+
+1. The old controller spec mocked the service interface method by method, which no longer applies. Replace `src/test/groovy/com/kousenit/CastleControllerSpec.groovy` with a test that proves the transformation happened:
+
+   ```groovy
+   package com.kousenit
+
+   import grails.rest.RestfulController
+   import grails.testing.web.controllers.ControllerUnitTest
+   import spock.lang.Specification
+
+   class CastleControllerSpec extends Specification implements ControllerUnitTest<CastleController> {
+
+       void "the annotation turns an empty class into a RestfulController for Castle"() {
+           expect:
+           controller instanceof RestfulController
+           controller.resource == Castle
+           ['index', 'show', 'create', 'save', 'edit', 'update', 'delete'].every { controller.respondsTo(it) }
+       }
+   }
+   ```
+
+2. `GormService.count` takes a `Map` of query arguments, where the data service interface's `count()` took none. In `CastleServiceSpec`, change both `castleService.count()` calls to `castleService.count([:])`.
+
+3. Run `./gradlew test` and `./gradlew integrationTest --tests 'com.kousenit.CastleServiceSpec'`.
+
+### Step 5: Run it
+
+Start the application and visit http://localhost:8080/castle. The list, the show page with its knights, the create form with the blank-name validation, and the edit page all behave as before, with no GSP files on disk. Add a castle, then check the JSON endpoint.
+
+### When to use which
+
+Static scaffolding is a starting point you edit: the generated controller is readable Groovy, and most real Grails applications begin that way and then diverge. `@Scaffold` is for the parts of an application that stay standard: admin screens, reference data, anything where the generated behavior is the behavior you want. You can mix them freely, as this project now does, and you can add or override individual actions on an annotated controller when one page needs something special.
+
+### Key Learning Points
+
+- `@Scaffold` is a compile-time AST transformation. The empty class really does become a `RestfulController` or `GormService` subclass, which is why a unit test can check `instanceof`.
+- `generate-scaffold-all` writes the two annotated classes; `generate-all` writes the full static version. Both come from the scaffolding plugin.
+- Runtime views fall back to the same templates, and `generate-views` lets you take over one page at a time.
+- `RestfulController` gives JSON and XML for free through content negotiation.
+
+### Checkpoint
+
+```bash
+git checkout step6-scaffold
+```

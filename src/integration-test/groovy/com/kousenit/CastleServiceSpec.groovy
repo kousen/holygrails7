@@ -42,21 +42,21 @@ class CastleServiceSpec extends Specification {
         setupData()
 
         expect:
-        castleService.count() == 5
+        castleService.count([:]) == 5
     }
 
     void "test delete"() {
         Long castleId = setupData()
 
         expect:
-        castleService.count() == 5
+        castleService.count([:]) == 5
 
         when:
         castleService.delete(castleId)
         sessionFactory.currentSession.flush()
 
         then:
-        castleService.count() == 4
+        castleService.count([:]) == 4
     }
 
     void "test save"() {

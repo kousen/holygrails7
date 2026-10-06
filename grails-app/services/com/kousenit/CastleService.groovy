@@ -1,18 +1,7 @@
 package com.kousenit
 
-import grails.gorm.services.Service
+import grails.plugin.scaffolding.annotation.Scaffold
 
-@Service(Castle)
-interface CastleService {
-
-    Castle get(Serializable id)
-
-    List<Castle> list(Map args)
-
-    Long count()
-
-    void delete(Serializable id)
-
-    Castle save(Castle castle)
-
+@Scaffold(Castle)
+class CastleService {
 }
