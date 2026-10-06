@@ -448,6 +448,8 @@ Grails can generate a complete create, read, update, delete interface for a doma
 > ```
 >
 > The plugin builds the image name as `selenium/standalone-<containerBrowser>`. Chromium also has an arm64 image, but Testcontainers rejects it as an unknown substitute for the Chrome image, so Firefox is the one-line answer.
+>
+> **The alternative is a Docker setting.** The crash happens when Docker Desktop's newer *Docker VMM* backend emulates amd64 with QEMU. In **Settings → General**, choose **Apple Virtualization framework** as the virtual machine option and tick **Use Rosetta for x86_64/amd64 emulation**. After Docker restarts, the default Chrome image works unchanged, and you can delete `GebConfig.groovy`. The repository keeps the Firefox configuration because it works on every Docker setup without touching settings.
 
 ### Key Learning Points
 

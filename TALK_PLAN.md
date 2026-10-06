@@ -129,3 +129,7 @@ entirely, or wave at scaffolding once and move on.
 - Hotel wifi is the enemy: nothing in the demo path needs the network.
 - Monty Python references should do structural work (names, constraints,
   finders), not add material.
+- **Geb on Apple silicon, resolved (6 Oct):** default Chrome image crashes under
+  Docker VMM (QEMU emulation). With Apple Virtualization framework + Rosetta the
+  amd64 image works unchanged. Repo keeps the Firefox GebConfig; Lab 1 documents
+  both. Ken's Docker is now on Apple VF + Rosetta.

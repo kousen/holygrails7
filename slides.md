@@ -866,7 +866,7 @@ Any `date - date` from older code fails until you add one dependency line.
 # Two more
 
 **Apple silicon breaks the Geb test out of the box.**
-`selenium/standalone-chrome` is amd64 only; Chrome dies under emulation. Two lines of `GebConfig.groovy` switch to Firefox's arm64 image:
+`selenium/standalone-chrome` is amd64 only, and Chrome dies under Docker VMM's QEMU emulation. Two fixes: two lines of `GebConfig.groovy` for Firefox's arm64 image, or switch Docker Desktop to the Apple Virtualization framework with Rosetta.
 
 ```groovy
 driver = { new RemoteWebDriver(new FirefoxOptions()) }
@@ -919,7 +919,7 @@ James's talk at 17:00 covers 8 properly. One line and hand off.
 
 Three issues I would file after this week, and this is the conference to say so
 
-1. **grails-geb**: mark the Chromium image as a Chrome substitute, or default to a multi-arch image on arm64 hosts
+1. **grails-geb**: document the Docker VMM crash, accept the Chromium image as a Chrome substitute, or default to a multi-arch image on arm64 hosts
 2. **The upgrade guide**: two headings have their version numbers swapped, and several Grails 7 sections sit under the Grails 5 to 6 chapter
 3. **Forge**: the JDK 25 option generates a build IntelliJ will not open
 
