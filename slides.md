@@ -767,17 +767,23 @@ Everything the Grails team publishes moved to `org.apache.grails`, with one BOM
 
 ---
 
-# Build and tooling
+# The build
 
-- **Micronaut is out** of the default stack. Grails 4 to 6 ran it as the parent context; 7 removes it. `grails-micronaut` is opt-in.
-- **Gradle 8.14.5**, parallel, lazy, cacheable. Gradle 9 is **not** supported by the 7.x plugins.
-- **The classic CLI and `grailsw` are back**, and they delegate to Gradle. `console` and `schema-export` survive.
-- **Forge** generates projects; the CLI scaffolds inside them.
-- Groovy 4's invokedynamic is disabled by default for Grails compiles (`grails { indy = true }` to re-enable).
+- **Micronaut is out** of the default stack. Grails 4 to 6 ran it as the parent context; `grails-micronaut` is now opt-in.
+- **Gradle 8.14.5**: parallel, lazy, cacheable. Gradle 9 is **not** supported by the 7.x plugins.
+- Groovy 4's invokedynamic is off for Grails compiles; `grails { indy = true }` turns it back on.
 - Test dependencies are off the production classpath.
-- `stop-app` uses a PID file, not JMX.
 - Reproducible builds: set `SOURCE_DATE_EPOCH`.
 
+---
+
+# The tooling
+
+- **The classic CLI and `grailsw` are back**, and they delegate to Gradle.
+- **Forge** generates projects; the CLI scaffolds inside them.
+- `console` and `schema-export` survive. `schemaExport` is also a Gradle task.
+- `stop-app` uses a PID file written by `run-app`, not JMX.
+- New in 7.1: `create-scaffold-controller`, `create-scaffold-service`, `generate-scaffold-all`.
 ---
 
 # Testing
@@ -808,30 +814,35 @@ Mattias has the Geb deep dive. Hand off.
 
 ---
 
-# Also new
+# Also new: data and configuration
 
-- **`@Scaffold`** and the `*-scaffold-*` commands (7.1)
-- **Audit annotations** (7.1): `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`; `@AutoTimestamp` deprecated for 8
-- **External configuration** built in: the old external-config plugin, no plugin needed
-- **GSP**: `formActionSubmit` replaces `actionSubmit`; `g:form` adds a CSRF token under Spring Security; `g:flashMessages`; Bootstrap 5.3 in scaffolding and Fields
-- **URL mappings** (7.1): `group` defaults; `$id+` greedy matching keeps dots in the id
-- **JSON dates** are ISO-8601 everywhere, including `java.util.Date`. Clients that parsed epoch millis need updating
+- **`@Scaffold`** on controllers and services
+- **Audit annotations** (7.1): `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`. `@AutoTimestamp` is deprecated for 8.
+- **External configuration** built in: the former external-config plugin, no plugin needed
+- **JSON dates** are ISO-8601 everywhere, `java.util.Date` included. Clients that parsed epoch millis need updating.
+- **The banner**, with dependency versions from 7.1
+
+---
+
+# Also new: the web layer
+
+- `formActionSubmit` replaces `actionSubmit`
+- `g:form` emits a CSRF token when Spring Security's CSRF protection is on
+- `g:flashMessages` renders flash as Bootstrap alerts; scaffolding and Fields tags support Bootstrap 5.3
+- **URL mappings** (7.1): `group` with shared defaults; `$id+` greedy matching keeps dots in the id
 - **SiteMesh 3** (7.2): decoration by a view resolver, so async controllers render correctly
-- **The banner**
-
 ---
 
 # Upgrading from 5 or 6
 
-1. Generate a fresh 7.2.4 app from Forge with your features. Diff `build.gradle`, `gradle.properties`, `application.yml`. Many old settings are now plugin defaults.
-2. Java 17 or 21. Gradle 8.14.x.
-3. Run the rename script. Delete the versions the BOM manages.
-4. `javax` → `jakarta`. The Nebula `jakartaee-migration` plugin helps for big codebases.
-5. Every pre-7 plugin needs a 7 release.
-6. Used Micronaut? Add `grails-micronaut`. Otherwise enjoy the smaller build.
-7. Groovy 4 changes: primitive `boolean` properties only get `isX()`; `DELEGATE_FIRST` resolution order changed; public fields now show up as properties.
+1. Generate a fresh 7.2.4 app from Forge and diff `build.gradle`, `gradle.properties`, `application.yml`
+2. Java 17 or 21; Gradle 8.14.x
+3. Run the rename script; delete versions the BOM manages
+4. `javax` → `jakarta` (Nebula `jakartaee-migration` for big codebases)
+5. Every pre-7 plugin needs a 7 release
+6. Used Micronaut? Add `grails-micronaut`
+7. Groovy 4: primitive `boolean` only gets `isX()`; `DELEGATE_FIRST` order changed; public fields are properties now
 8. Run the tests. Then run them in a container.
-
 ---
 layout: section
 ---
@@ -840,25 +851,32 @@ layout: section
 
 ---
 
-# Four things that will bite you
+# Two things that will bite you
 
-<div class="text-sm">
+**Grails 7 + Java 25 + IntelliJ does not work.**
+Grails 7.2 is pinned to Gradle 8.14, which officially supports Java 24 at most. The build runs on 25 from the command line; IntelliJ enforces Gradle's table and refuses to sync. Use 21. Grails 8 is on Gradle 9.8.
 
-**Grails 7 + Java 25 + IntelliJ does not work.** Grails 7.2 is pinned to Gradle 8.14, which officially supports Java 24 at most. The build runs on 25 from the command line; IntelliJ enforces Gradle's table and refuses to sync. Use 21. Grails 8 is on Gradle 9.8.
+<div class="pt-4" />
 
-**`groovy-datetime` is not on the classpath.** Any `date - date` from older code fails until you add one dependency line.
+**`groovy-datetime` is not on the classpath.**
+Any `date - date` from older code fails until you add one dependency line.
 
-**Apple silicon breaks the Geb test out of the box.** `selenium/standalone-chrome` is amd64 only; Chrome dies under emulation. Five lines of `GebConfig.groovy` switch to Firefox's arm64 image:
+---
+
+# Two more
+
+**Apple silicon breaks the Geb test out of the box.**
+`selenium/standalone-chrome` is amd64 only; Chrome dies under emulation. Two lines of `GebConfig.groovy` switch to Firefox's arm64 image:
 
 ```groovy
 driver = { new RemoteWebDriver(new FirefoxOptions()) }
 containerBrowser = 'firefox'
 ```
 
-**The Gradle configuration cache** in `~/.gradle/gradle.properties` breaks `buildProperties`. A project property cannot override it; mark the task `notCompatibleWithConfigurationCache` in `build.gradle`.
+<div class="pt-4" />
 
-</div>
-
+**The Gradle configuration cache** in `~/.gradle/gradle.properties` breaks `buildProperties`.
+A project property cannot override it; mark the task `notCompatibleWithConfigurationCache` in `build.gradle`.
 ---
 
 # Three things worth knowing
@@ -907,8 +925,7 @@ Three issues I would file after this week, and this is the conference to say so
 
 <div class="pt-6">
 
-Two days of training in 2012. Ten minutes of prompting now. The Grails 8 release notes credit an AI account among the contributors and ship an upgrade skill.
-The framework's own maintainers are working the way this morning's talk described.
+Two days of training in 2012; ten minutes of prompting now. The Grails 8 release notes credit an AI account among the contributors. The maintainers work the way this morning's talk described.
 
 </div>
 
