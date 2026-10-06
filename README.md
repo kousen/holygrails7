@@ -21,6 +21,10 @@ A complete [Apache Grails 7](https://grails.apache.org) application built in sta
 
 `main` is the finished application. To see a stage, `git checkout <tag>`.
 
+## Grails 8
+
+The `holygrails8` branch is the same application on Grails 8.0.0-RC2, Gradle 9.8 and JDK 25. Its README lists what the port touched; the headline is that Grails 8 makes unconstrained domain properties nullable by default.
+
 ## Running it
 
 Requires JDK 21 and Grails 7.2.4; `sdk env` selects both via [SDKMAN](https://sdkman.io). Docker is needed only for the browser tests.

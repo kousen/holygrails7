@@ -906,7 +906,9 @@ Tagged 4 October 2026, pre-release as of this talk
 | Spock | 2.3 | **2.4** |
 | Gradle | 8.14 | **9.8** |
 
-Hibernate dropped its Criteria API in 6. GORM kept yours: on Hibernate 7 the same `withCriteria` DSL is re-based on JPA Criteria.
+**Unconstrained properties become nullable by default**, as in JPA. `grails.gorm.default.nullable: false` restores the Grails 7 rule; otherwise a `Task` with no name saves and your schema loses its `NOT NULL`s.
+
+Hibernate dropped its Criteria API in 6. GORM kept yours, re-based on JPA Criteria. This app runs on 8.0.0-RC2 and JDK 25: branch `holygrails8`.
 
 <!--
 The upgrade from 7 is designed to be incremental: get to 7 first.

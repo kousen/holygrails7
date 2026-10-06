@@ -133,3 +133,9 @@ entirely, or wave at scaffolding once and move on.
   Docker VMM (QEMU emulation). With Apple Virtualization framework + Rosetta the
   amd64 image works unchanged. Repo keeps the Firefox GebConfig; Lab 1 documents
   both. Ken's Docker is now on Apple VF + Rosetta.
+- **holygrails8 branch (6 Oct):** app on 8.0.0-RC2 / Gradle 9.8 / JDK 25, Hibernate
+  5.6 kept; 76 unit (1 @PendingFeature for RC2 DomainUnitTest bug #16466) + 41
+  integration green. Findings: Grails 8 makes unconstrained properties nullable
+  by default (`grails.gorm.default.nullable: false` restores); RestfulController
+  index count is Long; Forge 8 starter swaps layout/assets/i18n/config. Demo
+  moment: `git checkout holygrails8`, same tests, JDK 25.
