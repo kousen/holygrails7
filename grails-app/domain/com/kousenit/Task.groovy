@@ -1,16 +1,15 @@
 package com.kousenit
 
-import groovy.transform.ToString
-
 import java.time.LocalDate
 
-@ToString(includeNames = true, includes = ['name', 'priority', 'completed'])
 class Task {
     String name
     int priority = 3
     LocalDate startDate = LocalDate.now()
     LocalDate endDate = LocalDate.now()
     boolean completed
+
+    String toString() { name }
 
     static belongsTo = [quest: Quest]
 

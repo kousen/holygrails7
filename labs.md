@@ -814,3 +814,252 @@ Open `build/reports/tests/test/index.html` to see the unrolled names. Try breaki
 ```bash
 git checkout step3-testing
 ```
+
+## Lab 4: Dynamic Finders, Criteria, and Where Queries
+
+GORM gives you four ways to ask a question of the database, from the terse to the composable: dynamic finders, criteria, where queries, and HQL. Earlier versions of this course explored them in the interactive Grails console, which no longer exists. The modern equivalent is better anyway: an integration test, where each query sits next to the answer you expect from it. First, though, the application needs some data.
+
+### Step 1: See the SQL
+
+GORM hides SQL from you, which is pleasant until you want to know what a finder actually does. Turn on SQL logging for the development environment only, in `grails-app/conf/application.yml` under `environments: development: dataSource:`:
+
+```yaml
+environments:
+  development:
+    dataSource:
+      dbCreate: create-drop
+      logSql: true
+      formatSql: true
+      url: jdbc:h2:mem:devDb;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE
+```
+
+Keep it out of `test`, where it turns the build log into wallpaper.
+
+### Step 2: Seed data on startup
+
+Grails runs `grails-app/init/com/kousenit/BootStrap.groovy` once at startup. We want the same data in the running app and in the query tests, so put it in a plain class that both can call.
+
+1. Create `src/main/groovy/com/kousenit/SeedData.groovy`:
+
+   ```groovy
+   package com.kousenit
+
+   import java.time.LocalDate
+
+   class SeedData {
+
+       static Quest seekTheGrail() {
+           LocalDate today = LocalDate.now()
+           new Quest(name: 'Seek the grail')
+                   .addToTasks(name: 'Run away from killer rabbit', priority: 1)
+                   .addToTasks(name: 'Answer the Bridgekeeper', priority: 4, startDate: today + 1, endDate: today + 1)
+                   .addToTasks(name: 'Defeat the Black Knight', completed: true, startDate: today - 3, endDate: today - 2)
+                   .addToTasks(name: 'Bring out your dead', completed: true, priority: 5, startDate: today - 1, endDate: today - 1)
+                   .addToTasks(name: 'Find a shrubbery for the Knights Who Say Ni', priority: 2, endDate: today + 7)
+                   .addToTasks(name: 'Get taunted by the French', completed: true, priority: 4)
+                   .addToTasks(name: 'Weigh a witch against a duck', priority: 3)
+                   .addToTasks(name: 'Build a giant wooden rabbit', priority: 2, endDate: today + 14)
+                   .addToTasks(name: 'Lobbeth the Holy Hand Grenade of Antioch', priority: 5, startDate: today + 2, endDate: today + 2)
+                   .save(failOnError: true)
+       }
+   }
+   ```
+
+   `addToTasks` accepts a map, builds the `Task`, sets its `quest`, and returns the quest, so the calls chain. Saving the quest cascades to the nine tasks. The dates use the Groovy operators from Lab 2.
+
+   `failOnError: true` matters. By default `save()` returns `null` on a validation failure and carries on; in startup code you want it to throw.
+
+2. Replace `BootStrap.groovy`:
+
+   ```groovy
+   package com.kousenit
+
+   import grails.util.Environment
+
+   class BootStrap {
+
+       def init = { servletContext ->
+           if (Environment.current != Environment.TEST && Quest.count() == 0) {
+               SeedData.seekTheGrail()
+           }
+       }
+
+       def destroy = {
+       }
+   }
+   ```
+
+   The guard keeps seed data out of the test environment, where tests set up their own, and out of a database that already has quests in it.
+
+3. Start the app and open http://localhost:8080/quest/show/1. The quest lists its nine tasks, and the console shows the formatted `insert` statements that put them there.
+
+4. The task links read like `com.kousenit.Task(name:Bring out your dead, priority:5, completed:false)`. That is the `@ToString` output from Lab 2, which suited the test reports but not a web page. Replace the annotation with a plain method:
+
+   ```groovy
+   String toString() { name }
+   ```
+
+   and delete the `import groovy.transform.ToString`. Restart and the links show task names.
+
+### Step 3: Create the integration test
+
+```bash
+./grailsw create-integration-test QuestQueries
+```
+
+The skeleton lands in `src/integration-test/groovy/com/kousenit/QuestQueriesSpec.groovy`, annotated `@Integration` and `@Rollback`.
+
+> [!IMPORTANT]
+> The obvious move is to call `SeedData.seekTheGrail()` in Spock's `setup()` method. Do not. With `@Rollback`, the transaction begins *after* `setup()` runs, so anything `setup()` saves is committed and stays in the database for every later test, in this spec and in others. That is why the generated service specs call a `setupData()` method at the top of each feature instead. Follow the same pattern.
+
+Replace the skeleton with this spec. Every feature method begins with `seed()`:
+
+```groovy
+package com.kousenit
+
+import grails.gorm.transactions.Rollback
+import grails.testing.mixin.integration.Integration
+import spock.lang.Specification
+
+import java.time.LocalDate
+
+@Integration
+@Rollback
+class QuestQueriesSpec extends Specification {
+
+    LocalDate today = LocalDate.now()
+
+    // Not setup(): with @Rollback, setup() runs before the transaction begins,
+    // so anything it saves is committed and leaks into the other tests.
+    private void seed() {
+        SeedData.seekTheGrail()
+    }
+
+    void "dynamic finders are built from property names"() {
+        seed()
+
+        expect:
+        Quest.findByName('Seek the grail').tasks.size() == 9
+        Task.findAllByCompleted(true).size() == 3
+        Task.findAllByPriorityGreaterThan(3).size() == 4
+        Task.countByCompletedAndPriorityGreaterThan(false, 3) == 2
+    }
+
+    void "finders can combine comparisons on several properties"() {
+        seed()
+
+        when: 'tasks of priority below 4 that start between yesterday and tomorrow'
+        List<Task> tasks = Task.findAllByPriorityLessThanAndStartDateBetween(4, today - 1, today + 1)
+
+        then: 'Bring out your dead qualifies on dates but not on priority'
+        tasks*.name.sort() == ['Build a giant wooden rabbit',
+                               'Find a shrubbery for the Knights Who Say Ni',
+                               'Run away from killer rabbit',
+                               'Weigh a witch against a duck']
+    }
+
+    void "list and count variants"() {
+        seed()
+
+        expect:
+        Task.count() == 9
+        Task.listOrderByPriority()*.priority == [1, 2, 2, 3, 3, 4, 4, 5, 5]
+        Task.list(max: 2, sort: 'name').name == ['Answer the Bridgekeeper', 'Bring out your dead']
+    }
+
+    void "criteria queries compose restrictions"() {
+        seed()
+
+        when:
+        List<Task> tasks = Task.withCriteria {
+            ilike 'name', '%rabbit%'
+            lt 'priority', 3
+            order 'name', 'asc'
+        }
+
+        then:
+        tasks*.name == ['Build a giant wooden rabbit', 'Run away from killer rabbit']
+    }
+
+    void "criteria can reach across associations"() {
+        seed()
+
+        when: 'quests with an incomplete task of priority 5'
+        List<Quest> quests = Quest.withCriteria {
+            tasks {
+                eq 'completed', false
+                eq 'priority', 5
+            }
+        }
+
+        then:
+        quests*.name == ['Seek the grail']
+    }
+
+    void "where queries are type-checked criteria in Groovy syntax"() {
+        seed()
+
+        when:
+        def urgent = Task.where { priority >= 4 && completed == false }
+
+        then:
+        urgent.count() == 2
+        urgent.list(sort: 'name')*.name == ['Answer the Bridgekeeper', 'Lobbeth the Holy Hand Grenade of Antioch']
+    }
+
+    void "where queries can be composed before they run"() {
+        seed()
+
+        given:
+        def open = Task.where { completed == false }
+
+        when: 'narrow the open tasks to the ones already overdue'
+        def overdue = open.where { endDate < today }
+
+        then:
+        open.count() == 6
+        overdue.count() == 0
+    }
+
+    void "findAll with a closure is a where query in disguise"() {
+        seed()
+
+        when:
+        List<Task> tasks = Task.findAll { priority in [1, 5] }
+
+        then:
+        tasks*.priority.sort() == [1, 5, 5]
+    }
+}
+```
+
+What each group shows:
+
+- **Dynamic finders** are methods GORM derives from the name: `findBy`, `findAllBy`, `countBy`, followed by property names, comparators such as `GreaterThan`, `LessThan`, `Between`, `Like`, and `And` or `Or` between them. `listOrderBy<Property>` sorts. They do not exist until you call them.
+- **Criteria** queries use a builder closure. Restrictions compose, `order` sorts, and nesting a closure named after an association, `tasks { ... }`, becomes a join. Criteria are the tool for queries built up at runtime from optional filters.
+- **Where queries** use Groovy expressions on the properties themselves and are checked at compile time, so a misspelled property is a compiler error. `Task.where { }` returns a `DetachedCriteria`: nothing runs until you call `list()`, `count()`, or `get()` on it, and you can refine it with another `where` first.
+- **`findAll { }`** on a domain class is a where query that runs immediately.
+
+> **Note:** The last test assigns the `findAll` result in a `when:` block before asserting on it. Written inline in an `expect:` block, the same call returned every task, because Spock rewrites the expressions in its assertion blocks and GORM's where-query transformation did not see the closure. Treat where-query closures like any other side-effecting call in Spock: run them in `given:` or `when:`, assert in `then:`.
+
+### Step 4: Run it
+
+```bash
+./gradlew integrationTest --tests 'com.kousenit.QuestQueriesSpec'
+```
+
+Nine tasks, eight features, and a transaction rolled back after each one. Add a test for a query of your own, for example the tasks due in the next week, using whichever style you like least, to see how the three compare.
+
+### Key Learning Points
+
+- `BootStrap.init` runs at startup. Guard seed data by environment and by whether the data already exists; use `failOnError: true` so bad seed data fails loudly.
+- `addTo<Collection>` builds the child, wires both sides of the association, and chains.
+- With `@Rollback`, `setup()` runs before the transaction. Seed inside each feature method.
+- Dynamic finders for one-liners, criteria for queries assembled at runtime, where queries for compile-time checked, composable queries.
+- `logSql` and `formatSql` show you what GORM is really sending to the database.
+
+### Checkpoint
+
+```bash
+git checkout step4-queries
+```
