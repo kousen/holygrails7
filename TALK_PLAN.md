@@ -38,9 +38,12 @@ entirely, or wave at scaffolding once and move on.
   Gradle 8.14.5.
 - 8.0.0-RC2 stack: Groovy 5.1.3, Spring Boot 4.1.1, Spock 2.4-groovy-5.0,
   Hibernate 7 support in GORM, jQuery 4, Undertow option.
-- Grails 7 features: containerized browser testing with Testcontainers (Geb),
-  optional Micronaut integration, SBOM generation, reproducible builds,
-  external configuration integration.
+- Grails 7 features (verified against the 7.2.4 guide): containerized browser
+  testing with Testcontainers (Geb), @Scaffold, HttpClientSupport (7.1),
+  @DatabaseCleanup, custom test phases (7.1), audit annotations (7.1), external
+  configuration integration, Micronaut removed (opt-in plugin). Reproducible
+  builds are an opt-in via SOURCE_DATE_EPOCH. **No SBOM feature is documented;
+  dropped.** `grails console` and `schema-export` still exist in 7.2.4.
 - ASF transition changes: mono repo, reworked CLIs, modernized Gradle plugins
   and tasks, and **new Maven coordinates for all artifacts** (e.g.
   `org.apache.grails:grails-core`, `org.apache.grails.profiles:web`). This
@@ -80,8 +83,8 @@ entirely, or wave at scaffolding once and move on.
 - **Geocoding:** Open-Meteo geocoding API (no key, JSON). BootStrap ships
   hard-coded coordinates; the service runs only for castles added via the UI,
   so startup never touches the network. Map: Leaflet + OpenStreetMap tiles.
-- **Finders/criteria** move from the dead `grails console` into a Spock
-  integration test.
+- **Finders/criteria** move from the Grails console (still available, but
+  not a tutorial medium) into a Spock integration test.
 - **Expansion for the "AI builds the rest" argument:** `Enemy` hierarchy for
   GORM inheritance (BlackKnight, RabbitOfCaerbannog, Bridgekeeper) and a JSON
   views endpoint tested with `HttpClientSupport` (7.1+).

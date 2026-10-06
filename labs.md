@@ -817,7 +817,7 @@ git checkout step3-testing
 
 ## Lab 4: Dynamic Finders, Criteria, and Where Queries
 
-GORM gives you four ways to ask a question of the database, from the terse to the composable: dynamic finders, criteria, where queries, and HQL. Earlier versions of this course explored them in the interactive Grails console, which no longer exists. The modern equivalent is better anyway: an integration test, where each query sits next to the answer you expect from it. First, though, the application needs some data.
+GORM gives you four ways to ask a question of the database, from the terse to the composable: dynamic finders, criteria, where queries, and HQL. Earlier versions of this course explored them in the interactive Grails console (`./grailsw console`, still available in Grails 7 through the `console` dependency in `build.gradle`). An integration test is a better vehicle for a tutorial, because each query sits next to the answer you expect from it, and it keeps running after the lab is over. First, though, the application needs some data.
 
 ### Step 1: See the SQL
 
@@ -1769,4 +1769,156 @@ Restart and open http://localhost:8080/castle. Three markers in Britain: Camelot
 
 ```bash
 git checkout step8-map
+```
+
+## Lab 9: What's New in Grails 7
+
+Grails 7.0.0 shipped on 28 October 2025, the first release after Grails graduated to an Apache Software Foundation top-level project, and 7.2.4 is the current release as these labs are written. This lab has one piece of code, a functional test that uses the most visible new testing feature, and then a tour of what changed, aimed at anyone bringing a Grails 5 or 6 application forward. Everything here is taken from the 7.2.4 user guide's *What's new* and *Upgrading* chapters, or was verified while building these labs.
+
+### Step 1: A functional test in a containerized browser
+
+Lab 1 mentioned `ContainerGebSpec`, the Grails 7 way to run [Geb](https://groovy.apache.org/geb/) browser tests: Testcontainers starts a browser in Docker, points it at the running application, and your test drives it. The starter app came with one such test for the welcome page. Here is one for the map from Lab 8. Create `src/integration-test/groovy/com/kousenit/CastleMapSpec.groovy`:
+
+```groovy
+package com.kousenit
+
+import grails.plugin.geb.ContainerGebSpec
+import grails.testing.mixin.integration.Integration
+import org.apache.grails.testing.cleanup.core.DatabaseCleanup
+
+@Integration
+@DatabaseCleanup
+class CastleMapSpec extends ContainerGebSpec {
+
+    def setup() {
+        Castle.withNewTransaction {
+            SeedData.theCourt(SeedData.seekTheGrail())
+        }
+    }
+
+    void 'the castle list shows every castle with coordinates on the map'() {
+        when: 'visiting the castle list'
+        go '/castle'
+
+        then: 'the page is the scaffolded list'
+        title == 'Castle List'
+
+        and: 'Leaflet has drawn one marker per castle'
+        waitFor { $('#map .leaflet-marker-icon').size() == 3 }
+
+        when: 'clicking the first marker'
+        $('#map .leaflet-marker-icon', 0).click()
+
+        then: 'its popup names the castle and links to it'
+        waitFor { $('.leaflet-popup-content').text().contains('knight(s)') }
+        $('.leaflet-popup-content a').text() in ['Camelot', 'Castle Aaargh', 'Swamp Castle']
+    }
+}
+```
+
+Three things to notice:
+
+- **`BootStrap` does not run in the test environment**, so the spec seeds its own castles in `setup()`, inside a transaction, because a browser request is not going to run inside the test's transaction.
+- **`@DatabaseCleanup`** truncates every table after each test. It is the Grails 7 answer to tests that commit data and therefore cannot use `@Rollback`. It needs the cleanup module for your database in `build.gradle`:
+
+  ```groovy
+  integrationTestImplementation "org.apache.grails:grails-testing-support-dbcleanup-h2"
+  ```
+
+- **`waitFor`** is Geb's way of waiting for JavaScript. The markers appear only after Leaflet runs on the page's `load` event.
+
+Run it with Docker running:
+
+```bash
+./gradlew integrationTest --tests 'com.kousenit.CastleMapSpec'
+```
+
+Fifteen seconds or so: container start, application start, one real browser session. The browser recording and reporting options in the Geb plugin README let you keep a video of a failing test.
+
+### Step 2: What changed in Grails 7
+
+#### The foundation
+
+| | Grails 6 | Grails 7.2.4 |
+|---|---|---|
+| Java | 11+ | **17+** (Gradle 8.14 limits it to 24 in practice) |
+| Groovy | 3.0 | **4.0.33** |
+| Spring Boot | 2.7 | **3.5.16** |
+| Spring Framework | 5.3 | **6.2.19** |
+| Jakarta EE | `javax.*` | **`jakarta.*`** |
+| Hibernate | 5.6 | 5.6.15 (the `jakarta` build) |
+| Gradle | 7.6 | **8.14.5** (8.14.4 minimum; Gradle 9 is not supported) |
+| Spock | 2.x | 2.3-groovy-4.0 |
+
+The `javax` to `jakarta` move is the one that touches application code: every `javax.servlet` and `javax.persistence` import changes. The guide suggests the Nebula `jakartaee-migration` Gradle plugin for projects with a lot of them.
+
+#### The ASF move and the Maven coordinates
+
+Every artifact the Grails team publishes now lives in the `org.apache.grails` group, and a single `grails-bom` manages all their versions, so dependency lines lose their version numbers. A few examples:
+
+| Grails 6 | Grails 7 |
+|---|---|
+| `org.grails:grails-core` | `org.apache.grails:grails-core` |
+| `org.grails.plugins:hibernate5` | `org.apache.grails:grails-data-hibernate5` |
+| `org.grails.plugins:spring-security-core:6.1.1` | `org.apache.grails:grails-spring-security` |
+| `org.grails.plugins:quartz:2.0.13` | `org.apache.grails:grails-quartz` |
+| `com.bertramlabs.plugins:asset-pipeline-grails` | `cloud.wondrify:asset-pipeline-grails` |
+
+The full mapping is in `RENAME.md` in the grails-core repository, and `etc/bin/rename_gradle_artifacts.sh` there rewrites a project's Gradle files for you. The Spring Security and Quartz plugins moved into the core repository, are versioned with Grails, and their documentation is now part of the user guide.
+
+In `gradle.properties`, `grailsVersion` is the only version you set. Remove `gormVersion` and `grailsGradlePluginVersion`.
+
+#### Build and tooling
+
+- **Micronaut is gone from the default stack.** Grails 4 through 6 ran Micronaut as the parent application context. Grails 7 removes it, which shrinks builds; `grails-micronaut` is an opt-in for projects that used it.
+- **The Gradle build is parallel, lazy, and cacheable.** Most Grails tasks support the build cache. The `buildProperties` task still fights the configuration cache, as Lab 0 found.
+- **Reproducible builds.** The ASF requires them for Grails itself, and applications can opt in by setting `SOURCE_DATE_EPOCH` to a fixed timestamp.
+- **Both CLIs are included.** `grails` (and `./grailsw`) runs the classic profile-based commands, which now delegate to Gradle; Forge at https://grails.apache.org/start generates projects and has the HTTP API from Lab 0. `grails console` and `schema-export` survive.
+- **`stop-app` uses a PID file** written by `run-app` and `bootRun`, instead of JMX.
+- **Test dependencies are off the production classpath.**
+- **Groovy's invokedynamic is disabled by default** in Grails compiles because Groovy 4 switched it on and it regressed performance; `grails { indy = true }` re-enables it.
+
+#### Features
+
+- **`@Scaffold`** on controllers and services (Lab 6), with `create-scaffold-controller`, `create-scaffold-service`, and `generate-scaffold-all` (7.1).
+- **`ContainerGebSpec`** for browser tests in Docker (this lab), with context path support in 7.1.
+- **`HttpClientSupport`** trait for HTTP tests with fluent assertions (7.1; Lab 11).
+- **`@DatabaseCleanup`** as the alternative to `@Rollback` (this lab).
+- **Custom test phases** (7.1): `testPhases { functionalTest { } }` in `build.gradle` gives you a source set, configurations, and a task.
+- **Audit annotations** (7.1): `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy` from `grails.gorm.annotation`, as a declared alternative to the `dateCreated` and `lastUpdated` naming convention from Lab 2. `@AutoTimestamp` is deprecated for removal in 8.
+- **The startup banner** (7.0), showing dependency versions from 7.1, and customizable.
+- **External configuration** is built in: the former external-config plugin, so `application.yml` files outside the jar work without a plugin.
+- **GSP**: `formActionSubmit` replaces `actionSubmit`, `g:form` emits a CSRF token when Spring Security's CSRF is on, `g:flashMessages` renders flash as Bootstrap alerts, and the scaffolding and Fields tags support Bootstrap 5.3.
+- **URL mappings** (7.1): `group` with shared namespace and controller defaults; a `+` suffix on a path variable for greedy matching, so `/$id+(.$format)?` keeps dots in the id.
+- **JSON rendering of dates** is ISO-8601 everywhere, including `java.util.Date`, in both converters and JSON views. If a client parsed epoch milliseconds, it needs updating.
+- **SiteMesh 3** (7.2): layout decoration moved from a servlet filter to a Spring MVC view resolver, so async controller results are decorated correctly. No changes needed for most applications.
+
+### Step 3: An upgrade checklist
+
+For a Grails 5 or 6 application, in the order that minimizes surprises:
+
+1. Generate a fresh 7.2.4 app from Forge with the same features and diff its `build.gradle`, `gradle.properties`, and `application.yml` against yours. Several formerly required settings are now plugin defaults, and Forge stopped generating redundant `application.yml` entries in 7.0.11.
+2. Move to Java 17 or 21 and Gradle 8.14.x.
+3. Run the rename script, or apply `RENAME.md` by hand, and delete version numbers that the BOM now manages.
+4. Replace `javax` imports with `jakarta`.
+5. Check third-party plugins: every pre-7 plugin needs a 7 release.
+6. If you used Micronaut-only features, add `grails-micronaut`; otherwise enjoy the smaller build.
+7. Watch for the Groovy 4 behavior changes the guide lists: primitive `boolean` properties no longer generate `getX()`, `DELEGATE_FIRST` closure resolution order changed, and public fields now appear in `MetaClass` properties.
+8. Run the tests. Then run them in a container with `ContainerGebSpec`.
+
+### Step 4: Grails 8 is next
+
+Grails 8.0.0 was tagged on 4 October 2026 and was still marked pre-release when these labs were written. What it brings, from the release candidates: Groovy 5, Spring Boot 4, Spock 2.4, GORM for Hibernate 7, and Gradle 9.8, which is what makes Java 25 a supported build JDK. The upgrade path from 7 is designed to be incremental, which is one more reason to get to 7 first.
+
+### Key Learning Points
+
+- Grails 7 is Java 17, Groovy 4, Spring Boot 3.5, and `jakarta.*`, published under `org.apache.grails` with one BOM.
+- Micronaut left the default stack; the classic CLI and `grailsw` came back.
+- The headline features are `@Scaffold`, containerized Geb testing, `HttpClientSupport`, `@DatabaseCleanup`, and the external configuration integration.
+- Upgrade by diffing against a fresh Forge app, running the rename script, and fixing `jakarta` imports.
+
+### Checkpoint
+
+```bash
+git checkout step9-grails7
 ```
