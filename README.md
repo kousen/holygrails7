@@ -26,7 +26,7 @@ A complete [Apache Grails 7](https://grails.apache.org) application built in sta
 Requires JDK 21 and Grails 7.2.4; `sdk env` selects both via [SDKMAN](https://sdkman.io). Docker is needed only for the browser tests.
 
 ```bash
-./grailsw run-app          # http://localhost:8080
+grails run-app          # http://localhost:8080 (or ./grailsw run-app without installing Grails)
 ./gradlew test             # unit tests
 ./gradlew integrationTest  # integration, HTTP and browser tests
 OFFLINE=1 ./gradlew integrationTest   # skip the live geocoder test

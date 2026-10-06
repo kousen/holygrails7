@@ -155,7 +155,7 @@ Commit it before you touch it. Every later diff is yours.
 
 ---
 
-# `./grailsw run-app`
+# `grails run-app`
 
 ```
        holygrails7: 0.1 | JVM: Eclipse Adoptium 21.0.8 | Grails: 7.2.4
@@ -182,7 +182,7 @@ layout: section
 # A domain class
 
 ```bash
-./grailsw create-domain-class Quest
+grails create-domain-class Quest
 ```
 
 ```groovy
@@ -212,7 +212,7 @@ LIVE: type this class. Then generate-all. ~4 minutes to the running list page.
 # `generate-all`
 
 ```bash
-./grailsw generate-all com.kousenit.Quest
+grails generate-all com.kousenit.Quest
 ```
 
 | File | Lines | What |
@@ -222,6 +222,10 @@ LIVE: type this class. Then generate-all. ~4 minutes to the running list page.
 | `views/quest/*.gsp` | 4 files | Fields plugin, Bootstrap 5.3 |
 | `QuestControllerSpec.groovy` | | unit test skeleton |
 | `QuestServiceSpec.groovy` | | integration test skeleton |
+
+---
+
+# A data service is an interface
 
 ```groovy
 @Service(Quest)
@@ -233,6 +237,11 @@ interface QuestService {
     Quest save(Quest quest)
 }
 ```
+
+- GORM reads the method names and generates the implementation at compile time
+- Every method is transactional
+- The controller gets it by property name: `QuestService questService`
+- Add your own: `List<Quest> findAllByNameLike(String pattern)` is enough; GORM writes the body
 
 ---
 
@@ -611,7 +620,7 @@ layout: section
 # A service
 
 ```bash
-./grailsw create-service Geocoder
+grails create-service Geocoder
 ```
 
 ```groovy

@@ -151,10 +151,12 @@ Grails applications start life in **Grails Forge**, the web-based project genera
 1. Start the app:
 
    ```bash
-   ./grailsw run-app
+   grails run-app
    ```
 
    or, equivalently, `./gradlew bootRun`. Both start an embedded Tomcat on port 8080.
+
+> **Note:** The project also contains `grailsw`, a wrapper script in the style of `gradlew`. It reads `grailsVersion` from `gradle.properties`, downloads that Grails distribution into `~/.grails/wrapper` on first use, and runs it, so `./grailsw run-app` works on a machine with only a JDK installed. Inside a project the two commands are equivalent; these labs use the SDKMAN-installed `grails` throughout.
 
 2. Watch the console. Grails 7 prints a banner with the versions it is running on:
 
@@ -194,7 +196,7 @@ Grails applications start life in **Grails Forge**, the web-based project genera
 
 - Grails Forge at https://grails.apache.org/start generates projects, and its HTTP API makes the generation reproducible from a single `curl` command.
 - Grails 7 artifacts use the `org.apache.grails` group and are versioned through a BOM, so `build.gradle` names no individual versions.
-- `./grailsw run-app` and `./gradlew bootRun` are the same thing: an embedded Tomcat running a Spring Boot application.
+- `grails run-app` and `./gradlew bootRun` are the same thing: an embedded Tomcat running a Spring Boot application.
 - The startup banner reports the JVM, Grails, Groovy, Spring Boot, and Spring versions.
 - SDKMAN's `.sdkmanrc` and `sdk env` keep tool versions consistent across machines.
 
@@ -213,7 +215,7 @@ Everything in a Grails application radiates out from its **domain classes**. A d
 1. From the project root, create the class with the Grails CLI:
 
    ```bash
-   ./grailsw create-domain-class Quest
+   grails create-domain-class Quest
    ```
 
    The command creates two files and reports them:
@@ -266,7 +268,7 @@ Grails can generate a complete create, read, update, delete interface for a doma
 1. Run the generator with the fully qualified class name:
 
    ```bash
-   ./grailsw generate-all com.kousenit.Quest
+   grails generate-all com.kousenit.Quest
    ```
 
 2. Look at what appeared:
@@ -301,7 +303,7 @@ Grails can generate a complete create, read, update, delete interface for a doma
 1. Start the application:
 
    ```bash
-   ./grailsw run-app
+   grails run-app
    ```
 
 2. Open http://localhost:8080. The welcome page now lists `QuestController` under **Available Controllers**. Click it.
@@ -472,7 +474,7 @@ A quest is a list of tasks. In this lab you add a `Task` class, make it belong t
 1. Generate the class and its test skeleton:
 
    ```bash
-   ./grailsw create-domain-class Task
+   grails create-domain-class Task
    ```
 
 2. Replace the contents of `grails-app/domain/com/kousenit/Task.groovy`:
@@ -554,14 +556,14 @@ A quest is a list of tasks. In this lab you add a `Task` class, make it belong t
 ### Step 3: Generate the scaffolding
 
 ```bash
-./grailsw generate-all com.kousenit.Task
+grails generate-all com.kousenit.Task
 ```
 
 This produces the same set of files as for `Quest`: controller, data service, four views, and two test skeletons. Open `grails-app/views/task/create.gsp` and notice that the whole form is one tag, `<f:all bean="task" .../>` from the Fields plugin, which renders a widget for each property: a select for `quest` populated from the database, day, month, and year selects for the dates, and a checkbox for `completed`.
 
 ### Step 4: Try it
 
-1. Start the app with `./grailsw run-app` and create a quest, then go to **TaskController → New Task**. The **Quest** dropdown lists your quest by its `toString` value.
+1. Start the app with `grails run-app` and create a quest, then go to **TaskController → New Task**. The **Quest** dropdown lists your quest by its `toString` value.
 
 2. Create a task with an end date earlier than its start date. The default error reads:
 
@@ -817,7 +819,7 @@ git checkout step3-testing
 
 ## Lab 4: Dynamic Finders, Criteria, and Where Queries
 
-GORM gives you four ways to ask a question of the database, from the terse to the composable: dynamic finders, criteria, where queries, and HQL. Earlier versions of this course explored them in the interactive Grails console (`./grailsw console`, still available in Grails 7 through the `console` dependency in `build.gradle`). An integration test is a better vehicle for a tutorial, because each query sits next to the answer you expect from it, and it keeps running after the lab is over. First, though, the application needs some data.
+GORM gives you four ways to ask a question of the database, from the terse to the composable: dynamic finders, criteria, where queries, and HQL. Earlier versions of this course explored them in the interactive Grails console (`grails console`, still available in Grails 7 through the `console` dependency in `build.gradle`). An integration test is a better vehicle for a tutorial, because each query sits next to the answer you expect from it, and it keeps running after the lab is over. First, though, the application needs some data.
 
 ### Step 1: See the SQL
 
@@ -904,7 +906,7 @@ Grails runs `grails-app/init/com/kousenit/BootStrap.groovy` once at startup. We 
 ### Step 3: Create the integration test
 
 ```bash
-./grailsw create-integration-test QuestQueries
+grails create-integration-test QuestQueries
 ```
 
 The skeleton lands in `src/integration-test/groovy/com/kousenit/QuestQueriesSpec.groovy`, annotated `@Integration` and `@Rollback`.
@@ -1077,7 +1079,7 @@ Castle 1 ──< Knight >── 1 Quest 1 ──< Task
 1. Generate the class:
 
    ```bash
-   ./grailsw create-domain-class Castle
+   grails create-domain-class Castle
    ```
 
 2. Replace `grails-app/domain/com/kousenit/Castle.groovy`:
@@ -1113,7 +1115,7 @@ Castle 1 ──< Knight >── 1 Quest 1 ──< Task
 1. Generate the class:
 
    ```bash
-   ./grailsw create-domain-class Knight
+   grails create-domain-class Knight
    ```
 
 2. Replace `grails-app/domain/com/kousenit/Knight.groovy`:
@@ -1168,8 +1170,8 @@ Castle 1 ──< Knight >── 1 Quest 1 ──< Task
 ### Step 3: Scaffolding for both
 
 ```bash
-./grailsw generate-all com.kousenit.Castle
-./grailsw generate-all com.kousenit.Knight
+grails generate-all com.kousenit.Castle
+grails generate-all com.kousenit.Knight
 ```
 
 Fill in `populateValidParams` in the two new controller specs, with `name`, `city`, and `country` for a castle, and `name` plus `favouriteColour` for a knight, and replace `setupData` and the `save` test in `CastleServiceSpec` and `KnightServiceSpec` as you did in Labs 1 and 2. Five castles and five knights each; the finished versions are in the repository if you would rather read than type.
@@ -1339,7 +1341,7 @@ Keep `CastleServiceSpec` in `src/integration-test`; it will need one small chang
 ### Step 3: Generate the annotated versions
 
 ```bash
-./grailsw generate-scaffold-all com.kousenit.Castle
+grails generate-scaffold-all com.kousenit.Castle
 ```
 
 The command writes two files. The controller:
@@ -1370,7 +1372,7 @@ That is the whole Castle web layer now. How it works:
 
 - `@Scaffold` is processed by a Grails **AST transformation** at compile time. `@Scaffold(Castle)` on the service makes the class extend `GormService<Castle>`, which implements `get`, `list`, `count`, `save`, and `delete` against GORM. `@Scaffold(RestfulServiceController<Castle>)` on the controller makes it extend `RestfulController<Castle>` with the seven CRUD actions, and routes every data operation through the `CastleService` bean.
 - The simpler `@Scaffold(Castle)` on a controller also works; it extends `RestfulController` and talks to the domain class directly, with no service in between.
-- **Views** are generated at runtime, from the same templates `generate-all` uses, whenever no GSP exists for the action. If you later want to customize one page, run `./grailsw generate-views com.kousenit.Castle` and edit only the file you need. You will do exactly that for the map in Lab 8.
+- **Views** are generated at runtime, from the same templates `generate-all` uses, whenever no GSP exists for the action. If you later want to customize one page, run `grails generate-views com.kousenit.Castle` and edit only the file you need. You will do exactly that for the map in Lab 8.
 - `RestfulController` responds to content negotiation. Try `curl -H "Accept: application/json" http://localhost:8080/castle/show/1` and you get the castle as JSON, knights included, without writing a JSON view.
 
 ### Step 4: Fix the tests
@@ -1439,7 +1441,7 @@ When nothing matches, the response has no `results` key at all.
 ### Step 1: Create the service
 
 ```bash
-./grailsw create-service Geocoder
+grails create-service Geocoder
 ```
 
 That makes `grails-app/services/com/kousenit/GeocoderService.groovy` and a unit test skeleton. The generated class is annotated `@Transactional`. Remove that: this service touches no database, and a transaction around an HTTP call is a waste.
@@ -1664,7 +1666,7 @@ After the next restart, `http://localhost:8080/webjars/leaflet/1.9.4/dist/leafle
 Lab 6 left `Castle` with no GSP files; the scaffolding renders them from templates at runtime. To customize the list page, generate the static versions and keep only the one you want:
 
 ```bash
-./grailsw generate-views com.kousenit.Castle
+grails generate-views com.kousenit.Castle
 rm grails-app/views/castle/create.gsp grails-app/views/castle/edit.gsp grails-app/views/castle/show.gsp
 ```
 
@@ -1873,7 +1875,7 @@ In `gradle.properties`, `grailsVersion` is the only version you set. Remove `gor
 - **Micronaut is gone from the default stack.** Grails 4 through 6 ran Micronaut as the parent application context. Grails 7 removes it, which shrinks builds; `grails-micronaut` is an opt-in for projects that used it.
 - **The Gradle build is parallel, lazy, and cacheable.** Most Grails tasks support the build cache. The `buildProperties` task still fights the configuration cache, as Lab 0 found.
 - **Reproducible builds.** The ASF requires them for Grails itself, and applications can opt in by setting `SOURCE_DATE_EPOCH` to a fixed timestamp.
-- **Both CLIs are included.** `grails` (and `./grailsw`) runs the classic profile-based commands, which now delegate to Gradle; Forge at https://grails.apache.org/start generates projects and has the HTTP API from Lab 0. `grails console` and `schema-export` survive.
+- **Both CLIs are included.** `grails` (and `grails`) runs the classic profile-based commands, which now delegate to Gradle; Forge at https://grails.apache.org/start generates projects and has the HTTP API from Lab 0. `grails console` and `schema-export` survive.
 - **`stop-app` uses a PID file** written by `run-app` and `bootRun`, instead of JMX.
 - **Test dependencies are off the production classpath.**
 - **Groovy's invokedynamic is disabled by default** in Grails compiles because Groovy 4 switched it on and it regressed performance; `grails { indy = true }` re-enables it.
@@ -1930,7 +1932,7 @@ Every quest has opposition. The Black Knight, the Rabbit of Caerbannog, and the 
 ### Step 1: The base class
 
 ```bash
-./grailsw create-domain-class Enemy
+grails create-domain-class Enemy
 ```
 
 Replace `grails-app/domain/com/kousenit/Enemy.groovy`:
@@ -1964,9 +1966,9 @@ An ordinary domain class, with one ordinary method. Nothing marks it as a base c
 Create the subclasses with the CLI, then replace each one.
 
 ```bash
-./grailsw create-domain-class BlackKnight
-./grailsw create-domain-class RabbitOfCaerbannog
-./grailsw create-domain-class Bridgekeeper
+grails create-domain-class BlackKnight
+grails create-domain-class RabbitOfCaerbannog
+grails create-domain-class Bridgekeeper
 ```
 
 `BlackKnight.groovy`:
@@ -2046,7 +2048,7 @@ create table bridgekeeper_questions (bridgekeeper_id bigint not null, questions_
 
 The subclass columns are nullable, since a rabbit has no `limbs_remaining`, and the base columns are `not null`. One table means polymorphic queries need no joins, at the cost of sparse rows. If you would rather have a table per subclass, set `tablePerHierarchy false` in the base class's `static mapping` block; GORM then joins on the primary key at query time.
 
-`schemaExport` is a Gradle task provided by the Grails Gradle plugin; `./grailsw schema-export` runs the same thing.
+`schemaExport` is a Gradle task provided by the Grails Gradle plugin; `grails schema-export` runs the same thing.
 
 ### Step 4: Seed the opposition
 
@@ -2312,7 +2314,7 @@ Map it to a path in `grails-app/controllers/com/kousenit/UrlMappings.groovy`, ab
 "/api/quests"(resources: "questApi")
 ```
 
-`resources:` creates the full RESTful set of mappings for the controller: `GET /api/quests` to `index`, `GET /api/quests/1` to `show`, `POST /api/quests` to `save`, `PUT` and `PATCH` to `update`, `DELETE` to `delete`. Run `./grailsw url-mappings-report` to see them.
+`resources:` creates the full RESTful set of mappings for the controller: `GET /api/quests` to `index`, `GET /api/quests/1` to `show`, `POST /api/quests` to `save`, `PUT` and `PATCH` to `update`, `DELETE` to `delete`. Run `grails url-mappings-report` to see them.
 
 ### Step 3: JSON views
 
