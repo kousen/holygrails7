@@ -955,6 +955,8 @@ class: text-center
 
 Questions?
 
-<div class="pt-8 opacity-70">
-"We are the Knights Who Say... Ni!"
+<img src="/run_away_better.png" class="h-80 mx-auto mt-4 rounded shadow" />
+
+<div class="pt-2 opacity-70">
+"Run away! Run away!"
 </div>
